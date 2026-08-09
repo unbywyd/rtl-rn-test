@@ -112,8 +112,11 @@ this harness does not yet cover.
 ## Build note
 
 Expo SDK 57 does not compile on **Xcode 26.2** out of the box — `expo-modules-jsi` hits a
-Swift 6.2 type-inference error. The fix is patched in `node_modules`, which any
-`npm install` erases. See finding **B1** in `harness/RESULTS.md`; it still needs a
-`patch-package` entry to be reproducible.
+Swift 6.2 type-inference error (`abs(_:)` no longer resolves against a `@usableFromInline`
+global).
+
+**Already fixed here:** `harness/patches/expo-modules-jsi+57.0.4.patch`, applied
+automatically via `postinstall: patch-package`. A clean `npm install` builds. See finding
+**B1** in `harness/RESULTS.md` for the diagnosis.
 
 ⚠️ Public repository. No secrets, credentials, or code from private projects.

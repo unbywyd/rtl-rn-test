@@ -365,8 +365,12 @@ Tested in **Arabic**, confirming the behaviour is not Hebrew-specific.
   guard milliseconds.isFinite, magnitude <= maxJavaScriptDateMilliseconds else {
   ```
 
-- **Caveat:** the edit lives in `node_modules/` and is **erased by any `npm install`**. It needs a
-  `patch-package` entry (or an SDK bump) before this is reproducible on a clean checkout.
+- **✅ RESOLVED — now reproducible.** The fix is committed as
+  `harness/patches/expo-modules-jsi+57.0.4.patch` and applied automatically by a
+  `postinstall: patch-package` script. Verified by deleting `node_modules/expo-modules-jsi`
+  and re-running `npm install`: patch-package re-applied it without intervention.
+  (The earlier caveat — that the edit lived only in `node_modules/` and was erased by any
+  install — no longer holds. It was confirmed erased before being fixed.)
 - **Implication:** not an RTL finding, but a **toolchain finding** worth carrying into the skill —
   Expo SDK 57 + Xcode 26.2 does not build out of the box. Any agent told to "just run `expo run:ios`"
   on this stack hits a Swift type-inference error with no obvious link to Expo.
