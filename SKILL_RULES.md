@@ -372,6 +372,18 @@ content-based resolution happening here at all.
 for the Mac session, and the old claim may still hold there — but the Android half of it is
 now disproven on current RN.
 
+**Corollary measured in the same pass (T17): `writingDirection` does NOT control alignment.**
+Two identical Hebrew strings, one with `writingDirection: 'rtl'` and one with `'ltr'`, no
+`textAlign` on either, rendered **identically** (both right-aligned) on Android.
+
+> Never offer `writingDirection` as an alternative to `textAlign`. It affects bidi ordering
+> within a string, not the alignment of the block. `textAlign` is the only property that
+> decides which edge text sits against.
+
+Also confirmed here: an explicit `textAlign` **overrides layout direction** — a
+`textAlign: 'left'` row stayed left-aligned inside the RTL screen. That is what makes it the
+correct tool for always-LTR data.
+
 ---
 
 ## Pending — measured but not yet conclusive

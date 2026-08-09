@@ -227,6 +227,26 @@ Re-ran the whole safe-area screen with the app in Hebrew on the same device:
 
 **Screenshots:** `he-t21-safe-1.png`, `he-t21-safe-3.png`, `he-t21-safe-bottom.png`
 
+### T3 / T4 / T17 — CLOSED on Android (Galaxy S21 Ultra, Android 15, RN 0.86.2)
+
+Four measurements, both language halves:
+
+1. **Default alignment follows layout direction, not content** — `en` app + Hebrew string →
+   left; `he` app + English string → right. Refutes the RN-blog claim. → R12
+2. **First-strong probes disproved** — plain / digit-leading / Latin-leading / emoji-leading
+   Hebrew all rendered right in the Hebrew app. No content-based heuristic exists here.
+3. **Explicit `textAlign` overrides layout direction** — a `textAlign: 'left'` row stayed
+   left inside the RTL screen. This is what makes it the correct tool for always-LTR data.
+4. **`writingDirection` does NOT control alignment** — `'rtl'` and `'ltr'` rows rendered
+   identically. It must not be offered as an alternative to `textAlign`.
+
+**Mixed-content block** (`רחוב Dizengoff 42, תל אביב`): the unforced row kept its segment
+order; the `forced rtl` row moved its label and disturbed the ordering. This is the same
+mechanism that breaks phone numbers — Latin text and digits inside RTL text are *weak*
+characters that bind to the surrounding direction.
+
+**Screenshots:** `he-t3-text.png`, `he-t5-phone.png`, `he-t3-mixed.png`
+
 ### T13 — `android:supportsRtl` ✅ (static)
 - **Observed:** `android:supportsRtl="true"` present in the generated
   `android/app/src/main/AndroidManifest.xml`.
