@@ -327,26 +327,54 @@ copy the old "add the reanimated plugin last" advice into a modern Expo project.
 
 ---
 
+## R12 · On Android, text alignment follows LAYOUT DIRECTION — not text content
+
+**Status:** ✅ measured, both halves, controlled probe strings. Galaxy S21 Ultra, Android 15,
+RN 0.86.2 / Fabric.
+
+**This refutes the most widely-cited claim about RN text alignment.** The RN 2016 blog says
+*"In Android, the default text alignment depends on the language of the text content"*. On
+this version it does not.
+
+**Both halves, same device, no `textAlign` anywhere:**
+
+| App language | String | Rendered |
+| --- | --- | --- |
+| `en` (LTR) | `שלום עולם` (pure Hebrew) | **left** |
+| `he` (RTL) | `Hello world` (pure English) | **right** |
+
+The text followed the app's **layout direction** in both cases, ignoring the script entirely.
+
+**The first-strong probes settle it.** In the Hebrew app, all four rendered **right**,
+identically to plain Hebrew:
+
+| Probe | Rendered |
+| --- | --- |
+| `שלום עולם` (plain) | right |
+| `123 שלום עולם` (digit-leading) | right |
+| `iPhone שלום עולם` (Latin-leading) | right |
+| `🚀 שלום עולם` (emoji-leading) | right |
+
+If Android were using `TEXT_DIRECTION_FIRST_STRONG` with an LTR fallback, the digit-,
+Latin- and emoji-leading strings would have gone **left**. They did not. There is no
+content-based resolution happening here at all.
+
+**Rule for the agent:**
+> Do not repeat "Android aligns text by content, iOS by app bundle" — on RN 0.86.2 with
+> Fabric, Android aligns by **layout direction**, exactly like a normal RTL-aware layout.
+>
+> The practical advice is unchanged and is what matters: **set `textAlign` explicitly**
+> whenever a string's direction must not depend on the surrounding layout — always-LTR
+> data such as phone numbers, emails, URLs, IBANs and code. Derive the value from the app's
+> language state (R1), never from `I18nManager.isRTL`.
+
+**Caveat:** iOS is not yet measured. The iOS half of this comparison is the main open item
+for the Mac session, and the old claim may still hold there — but the Android half of it is
+now disproven on current RN.
+
+---
+
 ## Pending — measured but not yet conclusive
-
-- **T3/T4 text alignment — the "Android aligns by content" claim is now doubtful.**
-  Two halves measured on the same device (Galaxy S21 Ultra, Android 15, RN 0.86.2):
-
-  | App language | Text sample | Rendered |
-  | --- | --- | --- |
-  | `en` (LTR) | Hebrew, no `textAlign` | **left** |
-  | `he` (RTL) | English, no `textAlign` | **right** |
-
-  In both cases the text followed the **app's layout direction**, not the script of the
-  string. That is the opposite of the widely-cited RN-blog claim that "on Android the
-  default text alignment depends on the language of the text content".
-
-  Not yet written as a rule: the T3 screen's purpose-built probe strings (digit-leading,
-  Latin-leading, emoji-leading Hebrew) have not been read in the Hebrew half yet, and the
-  observation so far comes from incidental UI copy rather than the controlled cases. The
-  practical advice is unaffected either way — **set `textAlign` explicitly** — but the
-  stated *mechanism* in the existing guide may be wrong and must not be copied forward
-  until T3 is read properly.
 - **Fabric reload fix** present in both 0.81.5 and 0.86.2 (`_updateLayoutContext` count 4).
 - **`boxShadow`** exists cross-platform in 0.86 types — the "shadowOffset is iOS-only"
   research finding may be stale. Not yet visually confirmed.
