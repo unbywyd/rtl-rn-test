@@ -655,6 +655,21 @@ The conflicting evidence in the research corpus came from
 as *Unsupported Version*. Under Fabric `direction` is parsed in shared C++, consistent with
 this result.
 
+**Re-verified under the R22c pattern (Android, state-driven RTL).** The original T10 run got its RTL
+from `forceRTL`. Re-run with direction coming from **app state** instead (`he · isRTL=false ·
+dir=rtl (state)`):
+
+| Row | Rendered |
+| --- | --- |
+| page default (inherits the state-driven RTL) | `3 2 1` ✅ |
+| **`direction: 'ltr'` island** | **`1 2 3` — overrides ⭐** |
+| `direction: 'rtl'` island | `3 2 1` ✅ |
+
+So `direction` **composes with** the R22c provider rather than competing with it: the provider sets
+the app's direction from state, and a nested island still overrides it locally. That is the
+mechanism for pinning always-LTR content — phone numbers, IBANs, order IDs, code — inside an
+otherwise RTL screen, and it works with `isRTL` permanently `false`.
+
 **Rule for the agent:**
 > To pin a subtree to a fixed direction — an always-LTR block of phone numbers, IDs, code or
 > version strings inside an RTL screen — prefer:
