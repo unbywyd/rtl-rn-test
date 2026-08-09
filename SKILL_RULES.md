@@ -683,6 +683,92 @@ because the correction was written `isRTL ? -dx : dx` and `isRTL` read `false`. 
 
 ---
 
+## R18 · `@react-native-community/blur` crashes the screen on RN 0.86 / New Architecture
+
+**Status:** ✅ measured — hard crash on device, Galaxy S21 Ultra, RN 0.86.2 / Fabric
+
+```
+java.lang.NoSuchMethodError: No virtual method
+  setupWith(Landroid/view/ViewGroup;)Leightbitlab/com/blurview/BlurViewFacade;
+  in class Leightbitlab/com/blurview/BlurView
+    at com.reactnativecommunity.blurview.BlurViewManagerImpl.createViewInstance
+    at com.facebook.react.fabric.mounting.SurfaceMountingManager.preallocateView
+```
+
+The RN wrapper calls a native `eightbitlab BlurView` method that does not exist in the
+resolved version — the library has not been updated for current RN.
+
+**Two things make this worse than an ordinary broken component:**
+1. It throws inside Fabric's **`preallocateView`**, before render, so the **entire screen
+   dies**, not just the blur.
+2. It is a **native** `NoSuchMethodError` — no JS error boundary can catch it, and it cannot
+   be surfaced as a graceful fallback.
+
+**Rule for the agent:**
+> On Expo SDK 57 / RN 0.86 with the New Architecture, use **`expo-blur`**. Do not add
+> `@react-native-community/blur` — it crashes on view creation.
+>
+> More generally: a native module that has not shipped a New-Architecture-compatible release
+> fails at **mount time with a native exception**, which no JS-side guard can contain. Check
+> a library's New Architecture support before adding it, rather than discovering it on device.
+
+---
+
+## R19 · Blur on Android needs BOTH `blurMethod` AND `BlurTargetView` (Expo SDK 57)
+
+**Status:** ✅ measured, three-way comparison on device, Galaxy S21 Ultra, Expo SDK 57 /
+`expo-blur@57.0.2`
+
+| Panel | Setup | Result |
+| --- | --- | --- |
+| A | default | **tint only** — stripes stay sharp, text readable through it ❌ |
+| B | `blurMethod="dimezisBlurView"` | **tint only** — identical to A ❌ |
+| C | `BlurTargetView` + `blurMethod` | **real blur** — stripes smeared, text unreadable ✅ |
+
+**Two separate requirements, both silent when missing:**
+
+1. **`blurMethod` defaults to `'none'` on Android.** From the type definitions:
+   ```ts
+   /** Blur method to use on Android. @default 'none' @platform android */
+   blurMethod?: 'none' | 'dimezisBlurView' | 'dimezisBlurViewSdk31Plus';
+   ```
+2. **A `BlurTargetView` must wrap the content being blurred.** From `ExpoBlurView.kt`:
+   ```kotlin
+   if (blurTarget == null || blurMethod == BlurMethod.NONE) { return }
+   ```
+
+Neither produces an error or a warning. The component renders, accepts every prop, and
+quietly draws a translucent rectangle.
+
+```jsx
+// ✅ correct on SDK 57 / Android
+<BlurTargetView style={styles.card}>
+  <ContentToBlur />
+  <BlurView intensity={50} tint="light" blurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
+</BlurTargetView>
+```
+
+**Version note — the API changed.** On **SDK 54** (`expo-blur@15`) the prop was
+`experimentalBlurMethod` and no `BlurTargetView` existed; that setup blurs fine there. On
+**SDK 57** `experimentalBlurMethod` is `@deprecated` and `BlurTargetView` is required. Code
+that worked before an SDK upgrade **silently degrades to a tint** afterwards — no build error,
+no runtime warning.
+
+**Blur can only blur its own view tree.** This is why a blurred confirm overlay must live in
+the same tree rather than inside a `Modal` — a `Modal` is a separate window, so there is
+nothing behind it to sample. Same root cause as the `BlurTargetView` requirement: blur needs
+an explicit source of pixels.
+
+**Rule for the agent:**
+> Never assume a blur is working because the component renders. On Android verify against a
+> high-contrast backdrop — if edges behind the panel stay sharp, it is a tint, not a blur.
+>
+> Design so the layout still works when blur degrades to a flat translucent panel: check text
+> contrast at `intensity={0}`. A design that is only legible *because* of the blur is relying
+> on an effect that is not guaranteed.
+
+---
+
 ## R11 · Three providers that silently do nothing if forgotten
 
 **Status:** ✅ observed across this build

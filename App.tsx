@@ -43,6 +43,7 @@ import { C } from './src/ui/kit';
 
 import SafeAreaScreen from './src/screens/SafeAreaScreen';
 import KeyboardMatrixScreen from './src/screens/KeyboardMatrixScreen';
+import BlurScreen from './src/screens/BlurScreen';
 import BaselineScreen from './src/screens/BaselineScreen';
 import DoubleFlipScreen from './src/screens/DoubleFlipScreen';
 import TextAlignScreen from './src/screens/TextAlignScreen';
@@ -54,6 +55,7 @@ import ShadowsScreen from './src/screens/ShadowsScreen';
 import LanguageScreen from './src/screens/LanguageScreen';
 
 type TabKey =
+  | 'blur'
   | 'keyboard'
   | 'safeArea'
   | 'baseline'
@@ -67,6 +69,7 @@ type TabKey =
   | 'language';
 
 const TABS: { key: TabKey; short: string }[] = [
+  { key: 'blur', short: 'T25 Blur' },
   { key: 'keyboard', short: 'T24 Kbd' },
   { key: 'safeArea', short: 'T21 Safe' },
   { key: 'doubleFlip', short: 'T2 Flip' },
@@ -124,6 +127,7 @@ export default function App() {
         <Header />
         <TabBar tab={tab} setTab={setTab} />
         <View style={st.content}>
+          {tab === 'blur' && <BlurScreen />}
           {tab === 'keyboard' && <KeyboardMatrixScreen />}
           {tab === 'safeArea' && <SafeAreaScreen />}
           {tab === 'baseline' && <BaselineScreen />}
