@@ -650,6 +650,39 @@ check that R1 can poison.
 
 ---
 
+## R17 · Shadows: `shadowOffset` is dead on Android, `boxShadow` is the cross-platform one
+
+**Status:** ✅ measured, Hebrew build, Galaxy S21 Ultra, RN 0.86.2.
+**This updates research finding C11, which is now outdated.**
+
+| Property | Renders on Android? | Mirrors in RTL? |
+| --- | --- | --- |
+| `shadowOffset` / `shadowRadius` / `shadowOpacity` | **No** — both cards rendered flat | n/a |
+| `elevation` | Yes — but symmetric, no horizontal component | nothing to mirror |
+| **`boxShadow`** | **Yes** ✅ — clear directional offset | **No — manual correction needed** |
+
+The two `shadowOffset` cards (`width: +10` and a direction-corrected one) were visually
+identical and shadow-less, confirming the property is inert on Android — so "negate
+`shadowOffset.width` for RTL" is a **no-op**, pure wasted work.
+
+`boxShadow` did render, with a visible right-and-down offset distinct from `elevation`'s
+symmetric shadow. Research finding C11 ("shadowOffset is iOS-only so RTL correction is
+pointless") is only half right on RN 0.86: a cross-platform directional shadow now exists.
+
+**But the direction-corrected `boxShadow` card looked identical to the uncorrected one** —
+because the correction was written `isRTL ? -dx : dx` and `isRTL` read `false`. R1 again.
+
+**Rule for the agent:**
+> For a directional shadow that works on both platforms, use `boxShadow` (RN 0.76+ types;
+> verified rendering on Android at 0.86.2). It does **not** mirror automatically — flip the
+> horizontal offset yourself, using a trustworthy direction source (R1), never
+> `I18nManager.isRTL`.
+>
+> Do not bother direction-correcting `shadowOffset`: it does not render on Android at all,
+> so the correction is invisible there and only affects iOS.
+
+---
+
 ## R11 · Three providers that silently do nothing if forgotten
 
 **Status:** ✅ observed across this build
