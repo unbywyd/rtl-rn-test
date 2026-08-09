@@ -419,6 +419,49 @@ right: text enters from the right and flows leftward.
 
 ---
 
+## R14 · The `+` in a phone number moves to the END in RTL — `textAlign` does not fix it
+
+**Status:** ✅ reproduced on device, Galaxy S21 Ultra, Arabic build
+
+**What was measured:** typing `+74863963` into an RTL-aligned input rendered as:
+```
+74863963+          ← the + moved to the end
+```
+
+**The digits are NOT reordered** — `74863963` reads correctly. Only the sign moves. That is
+what makes this bug dangerous: the number looks *almost* right, but `+972…` becomes `972+…`,
+which is no longer a dialable number.
+
+**Mechanism:** `+` is Unicode BiDi class **ES** (European Separator) — a *weak* character with
+no direction of its own. It inherits the surrounding paragraph direction, so in an RTL context
+it binds to the right-hand side and ends up trailing the digits.
+
+**Critically, the field that showed this bug already had a correct `textAlign`.**
+`textAlign` controls **block alignment**, not **character order within the string**. No amount
+of alignment tuning fixes it.
+
+**Rule for the agent:**
+> A leading `+`, and any sign attached to a number, will migrate to the wrong end inside RTL
+> text. `textAlign` cannot fix this — it aligns the block, not the characters.
+>
+> Isolate the value with BiDi marks:
+> ```jsx
+> const LRM = '‎';                       // LEFT-TO-RIGHT MARK
+> const LRI = '⁦', PDI = '⁩';       // isolates — stronger, preferred
+>
+> <Text>{LRI}{phone}{PDI}</Text>              // renders +972 54-123-4567 correctly
+> ```
+> Apply this to **every always-LTR value rendered inside RTL text**: phone numbers, IBANs,
+> order IDs, version strings, signed numbers, prices with a leading minus, and URLs.
+>
+> For `TextInput`, combine `textAlign: 'left'` (pin the block) with an LRM-prefixed
+> placeholder — alignment and character order are two separate problems and both need solving.
+
+**This is the single most practically damaging RTL bug in the set**, because it silently
+corrupts data users act on rather than merely misplacing pixels.
+
+---
+
 ## R11 · Three providers that silently do nothing if forgotten
 
 **Status:** ✅ observed across this build
