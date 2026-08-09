@@ -543,6 +543,42 @@ corrupts data users act on rather than merely misplacing pixels.
 
 ---
 
+## R15 · Logical-property traps: silent no-ops and precedence
+
+**Status:** ✅ all three measured, Arabic build, Galaxy S21 Ultra
+
+**1. `borderInlineStartWidth` does not exist — and fails silently.**
+```
+borderInlineStartWidth: 8   → NO border rendered      ❌ silently ignored
+borderStartWidth: 8         → border renders on right ✅
+```
+The `*Inline*` family covers margin and padding (`marginInlineStart`, `paddingInlineStart` —
+both verified working, gap on the right in RTL), but **not borders**. Only
+`borderStartWidth` / `borderEndWidth` exist. Writing the `Inline` form produces no error, no
+warning, and no border.
+
+> Do not extrapolate the `*Inline*` pattern to borders. Borders use `borderStartWidth` /
+> `borderEndWidth` only.
+
+**2. `start`/`end` silently beat `left`/`right`.**
+```
+start: 0 + left: 120   → hugs the right edge, left:120 ignored
+end:   0 + right: 120  → hugs the left edge,  right:120 ignored
+```
+> When merging styles, a `left`/`right` override placed on top of a base style containing
+> `start`/`end` becomes **dead code**. There is no warning. If a positioning override "does
+> nothing", check whether a logical property is winning.
+
+**3. `*Block*` is vertical and must not flip.** `marginBlockStart` == `marginTop`. Verified
+present, though the current test cannot visually distinguish "gap on top" from "no gap" —
+noted as a weak assertion rather than a confirmed result.
+
+**4. Absolute positioning with `start` works on Android.** `position start: 10` and
+`position left: 10` both landed on the right in RTL — paper#3542's report of `start`/`end`
+failing for absolute positioning **did not reproduce** here. iOS remains untested.
+
+---
+
 ## R11 · Three providers that silently do nothing if forgotten
 
 **Status:** ✅ observed across this build
