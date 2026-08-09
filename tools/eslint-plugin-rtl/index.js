@@ -171,6 +171,43 @@ module.exports = {
     },
 
     // -----------------------------------------------------------------------
+    'no-textalign-start': {
+      meta: {
+        type: 'problem',
+        docs: { description: "textAlign does not accept 'start'/'end' in React Native" },
+        schema: [],
+      },
+      create(context) {
+        return {
+          Property(node) {
+            const key = node.key && (node.key.name || node.key.value);
+            if (key !== 'textAlign') return;
+            // Unwrap `'start' as any` / `'start' as const` — a cast is exactly
+            // what people add when TypeScript rejects the value, so the rule
+            // must see through it rather than fall silent on the worst case.
+            let v = node.value;
+            while (v && (v.type === 'TSAsExpression' || v.type === 'TSTypeAssertion')) {
+              v = v.expression;
+            }
+            const value = v && (v.value !== undefined ? v.value : null);
+            if (value === 'start' || value === 'end') {
+              context.report({
+                node: v,
+                message:
+                  `\`textAlign: '${value}'\` is NOT a valid React Native value — the accepted ` +
+                  "set is 'auto' | 'left' | 'right' | 'center' | 'justify' (verified in the " +
+                  'installed types on 0.81.5 and 0.86.2, R6). It fails SILENTLY, leaving text ' +
+                  'on the wrong side. This is the classic bug from applying the web CSS ' +
+                  'logical-property rewrite to React Native. Use an explicit ' +
+                  "'left' | 'right' chosen from the app language (useDirection()).",
+              });
+            }
+          },
+        };
+      },
+    },
+
+    // -----------------------------------------------------------------------
     'no-direction-ternary': {
       meta: {
         type: 'problem',

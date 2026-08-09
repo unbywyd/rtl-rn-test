@@ -38,6 +38,7 @@ module.exports = [
       'rtl/no-physical-styles': 'error',
       'rtl/no-dead-logical-props': 'error',
       'rtl/no-direction-ternary': 'error',
+      'rtl/no-textalign-start': 'error',
       'rtl/require-bidi-isolate': 'warn',
     },
   },

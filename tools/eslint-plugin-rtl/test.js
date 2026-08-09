@@ -72,6 +72,20 @@ run('no-dead-logical-props', plugin.rules['no-dead-logical-props'], {
   ],
 });
 
+run('no-textalign-start', plugin.rules['no-textalign-start'], {
+  valid: [
+    { code: 'const s = { textAlign: "left" };' },
+    { code: 'const s = { textAlign: "right" };' },
+    { code: 'const s = { textAlign: "center" };' },
+    // start/end ARE valid for layout props — only textAlign rejects them.
+    { code: 'const s = { marginStart: 8 };' },
+  ],
+  invalid: [
+    { code: 'const s = { textAlign: "start" };', errors: 1 },
+    { code: 'const s = { textAlign: "end" };', errors: 1 },
+  ],
+});
+
 run('no-direction-ternary', plugin.rules['no-direction-ternary'], {
   valid: [
     { code: 'const s = { flexDirection: "row" };' },
