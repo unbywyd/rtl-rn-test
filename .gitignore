@@ -28,6 +28,10 @@
 android/
 dist/
 expo-env.d.ts
+harness/.expo/
+harness/android/
+harness/ios/
+harness/node_modules/
 ios/
 node_modules/
 npm-debug.*
