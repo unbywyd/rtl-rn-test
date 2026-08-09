@@ -607,6 +607,17 @@ failing for absolute positioning **did not reproduce** here. iOS remains unteste
 The third row is decisive: the island genuinely overrode the page direction. The prop is
 **not** a no-op on Android.
 
+**Confirmed from both sides** — the Hebrew (RTL) build shows the complementary proof:
+
+| Row | LTR build | RTL build |
+| --- | --- | --- |
+| page default | `1 2 3` | `3 2 1` |
+| `direction: 'ltr'` island | `1 2 3` (matches default) | **`1 2 3` — overrides ⭐** |
+| `direction: 'rtl'` island | **`3 2 1` — overrides ⭐** | `3 2 1` (matches default) |
+
+Each direction proves the opposite island, so the prop is verified in both directions rather
+than only in the case where it happens to agree with the page.
+
 The conflicting evidence in the research corpus came from
 [#41289](https://github.com/facebook/react-native/issues/41289), which is RN 0.68 and closed
 as *Unsupported Version*. Under Fabric `direction` is parsed in shared C++, consistent with
@@ -620,6 +631,18 @@ this result.
 > ```
 > over the `flexDirection: isRTL ? 'row-reverse' : 'row'` workaround. It states intent, needs
 > no direction check (and therefore cannot be broken by R1), and mirrors correctly.
+
+**The two approaches were compared side by side in the Hebrew build, and they disagreed:**
+
+| Approach | Rendered in RTL |
+| --- | --- |
+| `direction: 'ltr'` island | `1 2 3` — pinned LTR ✅ |
+| `flexDirection: isRTL ? 'row-reverse' : 'row'` | `3 2 1` — **failed** ❌ |
+
+The `row-reverse` workaround failed for the familiar reason: `isRTL` read `false`, so the
+ternary chose plain `'row'` and ordinary mirroring applied. This is not a stylistic
+preference — **`direction` is measurably more reliable**, because it carries no direction
+check that R1 can poison.
 >
 > **Caveat:** `direction` changes Yoga layout resolution only. It does **not** change
 > `I18nManager.isRTL`, and it does **not** fix BiDi character order inside a string — a phone
