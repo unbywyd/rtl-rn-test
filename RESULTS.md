@@ -148,9 +148,21 @@ which never actually consults the device's preferred locale.
 
 **Screenshot:** `t2-android-hebrew-systemlocale.png`
 
-> ⚠️ **Remaining scope caveat:** all runs were on an **emulator** (Pixel 6 Pro, API 34).
-> A physical device should be checked before the guide states this as universal, though
-> the source-level explanation makes a device difference unlikely.
+**Physical device confirms it — no caveat remains.**
+
+Samsung Galaxy S21 Ultra (SM-G998B), **Android 15**, arm64-v8a, system locale `ru-RU`,
+release APK built for arm64, fresh install:
+
+| Device | Android | Locale | Launch | Layout | `isRTL` |
+| --- | --- | --- | --- | --- | --- |
+| Emulator Pixel 6 Pro | 14 (API 34) | en-US / he-IL | 1st & cold | mirrored ✅ | `false` ❌ |
+| **Galaxy S21 Ultra** | **15** | **ru-RU** | **1st** | mirrored ✅ | **`false` ❌** |
+| **Galaxy S21 Ultra** | **15** | **ru-RU** | **cold restart** | mirrored ✅ | **`false` ❌** |
+
+Reproduces identically on real hardware, a newer Android version, a different CPU
+architecture and a third system locale. **The finding is general, not an emulator artifact.**
+
+**Screenshots:** `phone-launch1.png`, `phone-launch2.png`
 
 ### Consolidated conclusion for the guide
 
