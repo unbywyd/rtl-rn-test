@@ -13,11 +13,12 @@ Status legend: `[ ]` not started · `[~]` in progress · `[x]` verified · `[!]`
 - [x] Scaffold Expo blank-typescript app
 - [x] Install deps: expo-localization, i18next, react-i18next, async-storage, expo-dev-client
 - [x] Write TODO.md + TEST_PLAN.md
-- [ ] Build i18n layer (he/en/ru, direction-aware)
-- [ ] Build all test screens
-- [ ] `npx expo prebuild --platform android`
-- [ ] Run on Android device
-- [ ] git init + first commit
+- [x] Build i18n layer (he/en/ru/ar, direction-aware)
+- [x] Build all test screens (9 screens)
+- [x] Typecheck clean + `expo export` bundles (627 modules)
+- [x] `npx expo prebuild --platform android`
+- [x] Build + install on Android emulator (Pixel 6 Pro, API 34)
+- [x] git init + first commit
 - [ ] Push to GitHub (**only on explicit user command**)
 
 ---
@@ -34,7 +35,11 @@ Static checks already done at scaffold time:
 Runtime tests — see TEST_PLAN.md for the full procedure:
 
 - [ ] **T1** Baseline auto-mirroring (no `isRTL` anywhere)
-- [ ] **T2** Double-flip demo (proves R0/R2)
+- [~] **T2** Double-flip demo (proves R0/R2) — layout mirrors correctly, but see ⭐ below
+- [!] **T0 (unplanned)** ⭐ **`isRTL` reads `false` while Yoga mirrors the layout.**
+      Native prefs show `forceRTL=true`; `I18nManager.js` caches `isRTL` at module load and
+      never re-reads it. The two values disagree for the whole JS session. **Contradicts the
+      guide's single-flag model.** See RESULTS.md.
 - [ ] **T3** `<Text>` default alignment — Android content-based?
 - [ ] **T4** First-strong heuristic (digit/latin/emoji-leading Hebrew)
 - [ ] **T5** `TextInput` alignment + numeric caret
