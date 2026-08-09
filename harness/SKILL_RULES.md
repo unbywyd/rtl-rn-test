@@ -7,6 +7,12 @@ Anything unverified stays in `TEST_PLAN.md` until a device settles it.
 
 **Baseline:** Expo SDK 57 · RN 0.86.2 · Fabric · Galaxy S21 Ultra (Android 15) + Pixel 6 Pro emulator (API 34)
 
+
+> **These rules ship as a Claude Code skill:**
+> https://github.com/unbywyd/claude-skill-rtl-react-native
+> That repository is the maintained, installable form. This file is the source of record for
+> *why* each rule exists — the measurement, the device, and the claim it replaced.
+
 ---
 
 ## R1 · `I18nManager.isRTL` is unreliable — do not gate layout on it
