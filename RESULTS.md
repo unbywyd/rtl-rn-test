@@ -1579,3 +1579,21 @@ shows the bug and its fix in a single frame, with the mechanism named on screen.
 Below it, both Hebrew placeholders (`הכנס שם`) sit right regardless of `textAlign`, re-confirming
 **R13b**: the bug is invisible on same-script content, which is why a Hebrew app tested only with
 Hebrew strings looks fine while its direction logic is wrong.
+
+### T6 re-run under state-driven RTL (Android) ✅ — R14 holds regardless of how RTL is obtained
+
+Screenshot: `t5-android-live-rtl-2.png` · `he · isRTL=false · dir=rtl (state)`
+
+| Variant | Rendered |
+| --- | --- |
+| Plain, no LTR handling | `54-123-4567 972+` ❌ |
+| `textAlign: 'left'` + LRM placeholder | `+972 54-123-4567` ✅ |
+
+Identical to the original `forceRTL`-driven run. **BiDi corruption is a property of the text
+direction, not of how the app arrived at it** — switching to the R22c pattern fixes the layout story
+but changes nothing about character ordering. The two problems are orthogonal and both need solving.
+
+**T6c also correct here:** with the phone field pinned LTR, the ☎ icon stayed visually adjacent to
+it. Note this is the one `row-reverse` in the harness that is *supposed* to fire, and under
+state-driven RTL it does — unlike the T2 demo rows, which are keyed off `isRTL` and therefore stay
+broken (exactly as the T28 on-screen note predicts).
