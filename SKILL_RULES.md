@@ -34,14 +34,33 @@ Native state proved the flag was actually set:
 - `I18nUtil.kt:66` checks `Locale.getAvailableLocales()[0]` — an arbitrary JVM locale
   table entry, **not** the device's preferred locale.
 
-**Rule for the agent:**
-> Never gate layout on `isRTL`. It is not merely redundant — it can be **wrong**, in the
-> direction that silently produces LTR layout inside an RTL screen. For the few genuine
-> exceptions (directional icons, `TextInput.textAlign`, index math), derive direction from
-> the app's own language state, not from `I18nManager.isRTL`.
+**The exceptions are broken too — measured, not assumed.** In the Hebrew UI, the directional
+arrow written as the textbook-correct
+```jsx
+transform: [{ scaleX: I18nManager.isRTL ? -1 : 1 }]
+```
+rendered **identical to the unflipped arrow** — both pointing right, in a right-to-left UI.
+`isRTL` was `false`, so `scaleX` resolved to `1` and no flip occurred. The same screen showed
+the `row-reverse` demo rows rendering identically for the same reason.
 
-**Why this matters:** this is the strongest possible argument for the "don't touch RTL,
-it already works" position. Layout mirrored correctly *while the flag said otherwise*.
+So `isRTL` fails in **both** roles at once:
+- as a layout gate → produces LTR inside RTL (or masks a bug, see R1b),
+- as the direction source for the *legitimate* exceptions → icons never flip,
+  `textAlign` picks the wrong side, carousel indices are not inverted.
+
+**Rule for the agent:**
+> Never gate layout on `isRTL` — RN mirrors layout on its own, and the flag can be **wrong**.
+> And for the cases that genuinely need a direction (directional icons, `TextInput.textAlign`,
+> index math), **still do not read `I18nManager.isRTL`**. Derive direction from the app's own
+> language state, which is the value the app actually decided:
+> ```js
+> const isRTL = ['he', 'ar'].includes(i18n.language);   // trustworthy
+> // NOT: I18nManager.isRTL                              // startup snapshot, may be stale
+> ```
+
+**Why this matters:** this is the strongest possible argument for the "don't touch RTL, it
+already works" position — and it goes further than expected. Layout mirrored correctly *while
+the flag said otherwise*, and every piece of code that trusted the flag was wrong.
 
 ---
 
@@ -261,6 +280,31 @@ which is exactly where the plain component fails.
 
 ---
 
+## R1b · The double-flip bug can be MASKED by the `isRTL` bug — and that is worse
+
+**Status:** ✅ measured, Hebrew UI, Galaxy S21 Ultra
+
+**What was measured:** in the T2 screen with the app in Hebrew, the deliberately-wrong row
+(`justifyContent: isRTL ? 'flex-end' : 'flex-start'`) rendered at the **right** edge —
+i.e. it *looked correct*, identical to the properly-written row beside it.
+
+**Why:** `isRTL` read `false` (R1), so the ternary picked `flex-start`, which happens to be
+the right answer. Two bugs cancelled out.
+
+**Why this matters more than the plain double flip:**
+> Wrong direction code can look correct on the device you are testing on, because the flag
+> it depends on is itself wrong. It will start rendering incorrectly the moment `isRTL`
+> becomes accurate — a different RN version, a different platform, or a device where the
+> startup snapshot resolves `true`.
+
+**Rule for the agent:**
+> Do not treat "it looks right on my device" as evidence that direction-dependent code is
+> correct. Code that branches on `isRTL` for layout is wrong **even when the screenshot
+> looks fine** — verify by reading the code, not the render. The only safe layout code has
+> no direction branch in it at all.
+
+---
+
 ## R11 · Three providers that silently do nothing if forgotten
 
 **Status:** ✅ observed across this build
@@ -285,10 +329,24 @@ copy the old "add the reanimated plugin last" advice into a modern Expo project.
 
 ## Pending — measured but not yet conclusive
 
-- **T3/T4 text alignment.** In an English (LTR) app, Hebrew strings with no `textAlign`
-  rendered **left**-aligned on Android — including plain Hebrew with no leading Latin
-  character. This does **not** match the widely-cited "Android aligns by text content"
-  claim. Needs the Hebrew-app half before any rule is written.
+- **T3/T4 text alignment — the "Android aligns by content" claim is now doubtful.**
+  Two halves measured on the same device (Galaxy S21 Ultra, Android 15, RN 0.86.2):
+
+  | App language | Text sample | Rendered |
+  | --- | --- | --- |
+  | `en` (LTR) | Hebrew, no `textAlign` | **left** |
+  | `he` (RTL) | English, no `textAlign` | **right** |
+
+  In both cases the text followed the **app's layout direction**, not the script of the
+  string. That is the opposite of the widely-cited RN-blog claim that "on Android the
+  default text alignment depends on the language of the text content".
+
+  Not yet written as a rule: the T3 screen's purpose-built probe strings (digit-leading,
+  Latin-leading, emoji-leading Hebrew) have not been read in the Hebrew half yet, and the
+  observation so far comes from incidental UI copy rather than the controlled cases. The
+  practical advice is unaffected either way — **set `textAlign` explicitly** — but the
+  stated *mechanism* in the existing guide may be wrong and must not be copied forward
+  until T3 is read properly.
 - **Fabric reload fix** present in both 0.81.5 and 0.86.2 (`_updateLayoutContext` count 4).
 - **`boxShadow`** exists cross-platform in 0.86 types — the "shadowOffset is iOS-only"
   research finding may be stale. Not yet visually confirmed.

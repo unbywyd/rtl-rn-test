@@ -213,6 +213,20 @@ last rows render under the system navigation (visible on `phone-safearea-top.png
 the `1 2 3` row is partly covered). That is failure mode 1, unintentionally demonstrated
 by the app itself — a useful before/after pair for the skill.
 
+### T21/T22/T23 in Hebrew (RTL) ✅ — both directions verified
+
+Re-ran the whole safe-area screen with the app in Hebrew on the same device:
+
+- Layout mirrored entirely on its own — headings, card text and filler labels all moved to
+  the right. **No `isRTL` in any of that layout code.**
+- Insets unchanged and correct: `top 27.38`, `bottom 48`, `left/right 0`.
+- **The double-inset fix holds in RTL:** the final blue card sits cleanly above the nav bar
+  with a single inset of clearance, versus the doubled gap measured before the fix.
+- Header still reports `isRTL=false` — an eighth configuration confirming R1, now also
+  after a runtime language switch and reload.
+
+**Screenshots:** `he-t21-safe-1.png`, `he-t21-safe-3.png`, `he-t21-safe-bottom.png`
+
 ### T13 — `android:supportsRtl` ✅ (static)
 - **Observed:** `android:supportsRtl="true"` present in the generated
   `android/app/src/main/AndroidManifest.xml`.
