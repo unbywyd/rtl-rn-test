@@ -215,6 +215,74 @@ resizing for the keyboard. Both must now be handled explicitly through insets.
 
 ---
 
+## R10 · A TextInput inside any nested scroller needs an explicit owner
+
+**Status:** ✅ measured, 10-case matrix, Galaxy S21 Ultra (Android 15). Every case marked
+"should work" passed; every case marked "likely fails" failed. The prediction was exact.
+
+**Results:**
+
+| # | Wrapper | Result |
+| --- | --- | --- |
+| 1 | Bare `View`, no scroll | ✅ works |
+| 2 | Plain `ScrollView` | ❌ **fails** |
+| 3 | `KeyboardAvoidingView` + `ScrollView` | ❌ fails |
+| 4 | `KeyboardAwareScrollView` | ✅ works |
+| 5 | `ScrollView` nested in `KeyboardAwareScrollView` | ❌ fails |
+| 6 | Field at end of long content | ✅ works |
+| 7 | `TextInput` in `FlatList` | ❌ fails |
+| 8 | `TextInput` in `Modal` | ❌ fails |
+| 9 | Plain `TextInput` in bottom sheet | ❌ fails |
+| 9b | `BottomSheetTextInput` in bottom sheet | ✅ works |
+| 10 | Multiline `TextInput` | ✅ works |
+
+**The pattern:** exactly one actor must own scrolling the focused field into view. Three
+can claim it and they conflict —
+1. the **system** (`adjustResize`) — dead under edge-to-edge on Android 15,
+2. **`ScrollView`**'s internal focus logic — unreliable, and lost entirely when nested,
+3. a **keyboard-aware container** reading real IME insets — the only reliable one.
+
+Failure happens when zero actors own it (case 2), when two fight (case 3), or when the
+field sits in a scroller the aware-container does not control (cases 5 and 7).
+
+**Rule for the agent:**
+> Never leave a `TextInput` inside a bare `ScrollView`, a nested scroller, or a `FlatList`
+> and assume the keyboard will be handled. Give the field an explicit owner:
+> - normal screens → `KeyboardAwareScrollView` (`react-native-keyboard-controller`)
+> - **do not** stack `KeyboardAvoidingView` around a `ScrollView` — they double-compensate
+> - **never nest** a scroller inside the keyboard-aware container and put a field in it
+> - `FlatList` with inputs → use the library's aware list, not a plain `FlatList`
+> - `Modal` → it has its own window; give it its own keyboard handling
+> - **bottom sheet → `BottomSheetTextInput`, never plain `TextInput`** (measured: the plain
+>   one fails and the sheet-specific one works, in the same sheet, side by side)
+
+**This is the most common real-world case:** production forms live in sheets and modals,
+which is exactly where the plain component fails.
+
+---
+
+## R11 · Three providers that silently do nothing if forgotten
+
+**Status:** ✅ observed across this build
+
+`SafeAreaProvider`, `KeyboardProvider` and `GestureHandlerRootView` share a failure mode:
+install the package, use its components, and **nothing happens** — no error, no warning.
+`useSafeAreaInsets()` returns zeros; keyboard-aware containers do not react; a bottom sheet
+does not open.
+
+**Rule for the agent:**
+> When adding `react-native-safe-area-context`, `react-native-keyboard-controller` or
+> `@gorhom/bottom-sheet`, wrap the root in the matching provider in the same edit.
+> A missing provider produces silent misbehaviour, not a crash — so it is invisible in
+> review and only shows up on device.
+
+Related, verified here: on **Expo SDK 57** `babel-preset-expo` already includes the
+reanimated/worklets babel plugin. Adding a hand-written `babel.config.js` for it **breaks
+the bundler** (`Cannot read properties of undefined (reading 'transformFile')`). Do not
+copy the old "add the reanimated plugin last" advice into a modern Expo project.
+
+---
+
 ## Pending — measured but not yet conclusive
 
 - **T3/T4 text alignment.** In an English (LTR) app, Hebrew strings with no `textAlign`

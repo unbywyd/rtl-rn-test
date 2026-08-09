@@ -30,6 +30,9 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 // component to work. Without it they silently do nothing — the same class of
 // mistake as forgetting SafeAreaProvider.
 import { KeyboardProvider } from 'react-native-keyboard-controller';
+// GestureHandlerRootView must wrap the tree for @gorhom/bottom-sheet to work.
+// Another silent-no-op provider, same family as SafeAreaProvider/KeyboardProvider.
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { StatusBar } from 'expo-status-bar';
 import { useTranslation } from 'react-i18next';
 
@@ -39,6 +42,7 @@ import { reloadApp } from './src/lib/reload';
 import { C } from './src/ui/kit';
 
 import SafeAreaScreen from './src/screens/SafeAreaScreen';
+import KeyboardMatrixScreen from './src/screens/KeyboardMatrixScreen';
 import BaselineScreen from './src/screens/BaselineScreen';
 import DoubleFlipScreen from './src/screens/DoubleFlipScreen';
 import TextAlignScreen from './src/screens/TextAlignScreen';
@@ -50,6 +54,7 @@ import ShadowsScreen from './src/screens/ShadowsScreen';
 import LanguageScreen from './src/screens/LanguageScreen';
 
 type TabKey =
+  | 'keyboard'
   | 'safeArea'
   | 'baseline'
   | 'doubleFlip'
@@ -62,6 +67,7 @@ type TabKey =
   | 'language';
 
 const TABS: { key: TabKey; short: string }[] = [
+  { key: 'keyboard', short: 'T24 Kbd' },
   { key: 'safeArea', short: 'T21 Safe' },
   { key: 'doubleFlip', short: 'T2 Flip' },
   { key: 'textAlign', short: 'T3 Text' },
@@ -110,6 +116,7 @@ export default function App() {
     // SafeAreaProvider must wrap the tree, otherwise useSafeAreaInsets() returns
     // zeros and every inset-aware layout silently degrades. Forgetting this is
     // the single most common safe-area mistake.
+    <GestureHandlerRootView style={{ flex: 1 }}>
     <SafeAreaProvider>
       <KeyboardProvider>
       <SafeAreaView style={st.safe} edges={['top', 'left', 'right']}>
@@ -117,6 +124,7 @@ export default function App() {
         <Header />
         <TabBar tab={tab} setTab={setTab} />
         <View style={st.content}>
+          {tab === 'keyboard' && <KeyboardMatrixScreen />}
           {tab === 'safeArea' && <SafeAreaScreen />}
           {tab === 'baseline' && <BaselineScreen />}
           {tab === 'doubleFlip' && <DoubleFlipScreen />}
@@ -133,6 +141,7 @@ export default function App() {
       </SafeAreaView>
       </KeyboardProvider>
     </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
 
