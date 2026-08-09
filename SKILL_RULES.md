@@ -557,6 +557,10 @@ both verified working, gap on the right in RTL), but **not borders**. Only
 `borderStartWidth` / `borderEndWidth` exist. Writing the `Inline` form produces no error, no
 warning, and no border.
 
+Verified in **both** directions: the `Inline` border box rendered no border in Arabic *and* in
+English, while `borderStartWidth` correctly drew on the right in RTL and on the left in LTR.
+So the property is genuinely absent, not merely "unsupported in RTL".
+
 > Do not extrapolate the `*Inline*` pattern to borders. Borders use `borderStartWidth` /
 > `borderEndWidth` only.
 
@@ -569,9 +573,17 @@ end:   0 + right: 120  → hugs the left edge,  right:120 ignored
 > `start`/`end` becomes **dead code**. There is no warning. If a positioning override "does
 > nothing", check whether a logical property is winning.
 
-**3. `*Block*` is vertical and must not flip.** `marginBlockStart` == `marginTop`. Verified
-present, though the current test cannot visually distinguish "gap on top" from "no gap" —
-noted as a weak assertion rather than a confirmed result.
+**3. `*Block*` is vertical and does not affect horizontal placement.** `marginBlockStart` ==
+`marginTop`. Confirmed by comparing both directions: the box sat on the right in the Arabic
+build and on the left in the English one — i.e. it followed ordinary layout mirroring and the
+`Block` property contributed nothing horizontal, which is the correct behaviour.
+
+**`*Inline*` confirmed in both directions**, which is the stronger form of the check:
+
+| Property | RTL (Arabic) | LTR (English) |
+| --- | --- | --- |
+| `marginInlineStart: 40` | gap on the right | gap on the left ✅ |
+| `paddingInlineStart: 40` | gap on the right | gap on the left ✅ |
 
 **4. Absolute positioning with `start` works on Android.** `position start: 10` and
 `position left: 10` both landed on the right in RTL — paper#3542's report of `start`/`end`
