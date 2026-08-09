@@ -1559,3 +1559,23 @@ agent verifying this pattern will make the same mistake:
 | iOS | ❌ no working configuration | ✅ **works** |
 
 **The recipe in R22c is now measured working on both platforms.** It is the only approach that is.
+
+### T5 re-run under state-driven RTL (Android) ✅ — the definitive R1 illustration
+
+Screenshot: `t5-android-live-rtl-1.png` · header: `he · isRTL=false · dir=rtl (state)`
+
+The earlier T5 runs got their RTL from `forceRTL`; this one uses the R22c provider, so the layout is
+genuinely RTL while `I18nManager.isRTL` is `false`. The screen even labels it:
+`I18nManager.isRTL = false ← may be stale`.
+
+| Input | `textAlign` derived from | Rendered |
+| --- | --- | --- |
+| "broken when the flag is stale" | `I18nManager.isRTL` | **left** ❌ |
+| "follows the real direction" | app language | **right** ✅ |
+
+Same property, same screen, one line of difference. **This is the image to use in the skill** — it
+shows the bug and its fix in a single frame, with the mechanism named on screen.
+
+Below it, both Hebrew placeholders (`הכנס שם`) sit right regardless of `textAlign`, re-confirming
+**R13b**: the bug is invisible on same-script content, which is why a Hebrew app tested only with
+Hebrew strings looks fine while its direction logic is wrong.

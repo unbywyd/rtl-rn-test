@@ -174,7 +174,8 @@ it produced are **R20–R23** in `SKILL_RULES.md`. Read those two before running
 
 **New since the Android pass** — three screens and two tools that Android has never seen:
 
-- [ ] **T27 Line** (`src/screens/LineHeightScreen.tsx`) — line height / vertical centring, 7 sections.
+- [x] **T27 Line** — DONE on Android. §1/§2/§6 reproduce identically; §3 found a REAL platform
+      difference (lineHeight=height centres on Android, not on iOS) → R21c.
       iOS column only. Its §3 and §5 report several methods "working", which under **R20** means
       **unverified**, not safe — Android is the strict platform and is what can falsify them
   - [ ] **§2 clipping (R21b)** — confirm `lineHeight ≤ fontSize` clips on Android too, and pin the
@@ -182,12 +183,17 @@ it produced are **R20–R23** in `SKILL_RULES.md`. Read those two before running
   - [x] **§6b ellipsis side — ANSWERED on iOS.** The `…` follows the text direction (Hebrew: left,
         English: right), placed from the string paragraph direction, not the app flag. **Needs no RTL
         handling at all.** Re-confirm on Android
-- [ ] **T28** — `DirectionProvider` (`src/lib/direction.tsx`), toggle on the T12 tab. Verify the
+- [x] **T28** — DONE on Android. ru→he flipped the whole island instantly, no reload, isRTL
+      unchanged. R22c now verified on BOTH platforms. Tab bar not flipping is correct (outside island).
+- [x] ~~verify the~~
       R22 pattern mirrors on Android too, and that `isRTL` still does **not** follow the island
-- [ ] **T29 Where** (`src/screens/DirectionPlacementScreen.tsx`) — 8 rows: placement (A–F) and
+- [x] **T29 Where** — placement rows DONE on Android: a ScrollView does NOT block inheritance;
+      both the ScrollView and its contentContainerStyle work (R22b). Rows G/H not captured.
+- [ ] ~~8 rows: placement (A–F) and~~
       runtime toggle (G/H). Confirm `direction` inherits through `ScrollView` and applies on
       live-node update on Android as it does on iOS
-- [ ] **Lint plugin** (`tools/eslint-plugin-rtl/`) — `npm run lint:rtl`, `npm run test:rtl-rules`.
+- [x] **Lint plugin** — VERIFIED on Windows. Added missing devDeps (eslint, @typescript-eslint/parser),
+      added a 6th rule `no-textalign-start` incl. an `as any` unwrap. 6/6 tests pass, repo lints clean.
       Both should stay green; the rules are platform-independent
 
 **Re-measure on Android** (iOS could only test these in an LTR layout, so its results are weak):
