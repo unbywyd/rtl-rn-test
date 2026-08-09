@@ -178,6 +178,41 @@ for the entire process lifetime while the app renders fully mirrored. Therefore:
 - This is the strongest empirical support yet for the user's position that `isRTL` is
   overused: measured here, it was not just unnecessary — it was **factually wrong**.
 
+### T21/T22/T23 — Safe area, system bars, keyboard (Galaxy S21 Ultra, Android 15, LTR/en)
+
+**Live inset values on this device:**
+```
+top: 27.38     bottom: 48     left: 0     right: 0
+screen: 384×853 dp   (physical 1080×2400 → density ≈ 2.8)
+StatusBar.currentHeight: 27.38
+```
+
+- **Edge-to-edge is correctly configured** ✅ — `bottom: 48` is non-zero on a
+  3-button-nav device, which is the documented signal that insets are live. Android 15
+  ignores window-fitting flags entirely, so insets are the only correct mechanism.
+- **Units are dp, not px.** `insets.bottom: 48` is ~134 physical pixels here. Worth
+  stating in the guide: a "small" inset number is a large visual band.
+
+### ❌ **Finding: double-counted bottom inset (the quiet half of the mistake)**
+- **Observed:** the final card cleared the nav bar but left roughly twice the necessary
+  gap — ~144dp of dead space instead of ~96dp.
+- **Cause:** the inset was applied in two places at once — the `ScrollView`'s
+  `contentContainerStyle` (`paddingBottom: 48 + insets.bottom`) *and* the card itself
+  (`marginBottom: insets.bottom`).
+- **Rule for the guide:** apply the bottom inset in **exactly one place**, normally the
+  scroll container. There are two symmetrical failure modes and both are bugs:
+  1. **Forgetting the inset** → content sits under the nav bar. Loud, obvious.
+  2. **Double-counting it** → a large dead gap. Quiet, ships unnoticed.
+  An agent told only "remember safe area" reliably produces mode 2.
+- **Fixed in `SafeAreaScreen.tsx`**, with the original mistake kept as a code comment.
+- **Screenshot:** `en-t21-safe-4-bottom.png`
+
+### ⚠️ Observed during the same pass: content under the nav bar in other tabs
+The `ScrollView`s inside the other test screens do **not** add a bottom inset, so their
+last rows render under the system navigation (visible on `phone-safearea-top.png`, where
+the `1 2 3` row is partly covered). That is failure mode 1, unintentionally demonstrated
+by the app itself — a useful before/after pair for the skill.
+
 ### T13 — `android:supportsRtl` ✅ (static)
 - **Observed:** `android:supportsRtl="true"` present in the generated
   `android/app/src/main/AndroidManifest.xml`.

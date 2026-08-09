@@ -13,7 +13,6 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  SafeAreaView,
   ScrollView,
   Text,
   View,
@@ -23,6 +22,10 @@ import {
   I18nManager,
   Platform,
 } from 'react-native';
+// NOTE: SafeAreaView must come from react-native-safe-area-context, NOT from
+// react-native. RN's own SafeAreaView is iOS-only and a no-op on Android — a
+// very common cause of "it works on my iPhone" bottom-bar overlap.
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { useTranslation } from 'react-i18next';
 
@@ -31,6 +34,7 @@ import { bootstrapLanguage, type BootstrapInfo } from './src/i18n';
 import { reloadApp } from './src/lib/reload';
 import { C } from './src/ui/kit';
 
+import SafeAreaScreen from './src/screens/SafeAreaScreen';
 import BaselineScreen from './src/screens/BaselineScreen';
 import DoubleFlipScreen from './src/screens/DoubleFlipScreen';
 import TextAlignScreen from './src/screens/TextAlignScreen';
@@ -42,6 +46,7 @@ import ShadowsScreen from './src/screens/ShadowsScreen';
 import LanguageScreen from './src/screens/LanguageScreen';
 
 type TabKey =
+  | 'safeArea'
   | 'baseline'
   | 'doubleFlip'
   | 'textAlign'
@@ -53,6 +58,7 @@ type TabKey =
   | 'language';
 
 const TABS: { key: TabKey; short: string }[] = [
+  { key: 'safeArea', short: 'T21 Safe' },
   { key: 'doubleFlip', short: 'T2 Flip' },
   { key: 'textAlign', short: 'T3 Text' },
   { key: 'language', short: 'T12 Lang' },
@@ -97,24 +103,30 @@ export default function App() {
   }
 
   return (
-    <SafeAreaView style={st.safe}>
-      <StatusBar style="dark" />
-      <Header />
-      <TabBar tab={tab} setTab={setTab} />
-      <View style={st.content}>
-        {tab === 'baseline' && <BaselineScreen />}
-        {tab === 'doubleFlip' && <DoubleFlipScreen />}
-        {tab === 'textAlign' && <TextAlignScreen />}
-        {tab === 'inputs' && <InputsScreen />}
-        {tab === 'numbers' && <NumbersScreen />}
-        {tab === 'logical' && <LogicalPropsScreen />}
-        {tab === 'direction' && <DirectionScreen />}
-        {tab === 'shadows' && <ShadowsScreen />}
-        {tab === 'language' && (
-          <LanguageScreen bootstrapInfo={JSON.stringify(info, null, 1)} />
-        )}
-      </View>
-    </SafeAreaView>
+    // SafeAreaProvider must wrap the tree, otherwise useSafeAreaInsets() returns
+    // zeros and every inset-aware layout silently degrades. Forgetting this is
+    // the single most common safe-area mistake.
+    <SafeAreaProvider>
+      <SafeAreaView style={st.safe} edges={['top', 'left', 'right']}>
+        <StatusBar style="dark" />
+        <Header />
+        <TabBar tab={tab} setTab={setTab} />
+        <View style={st.content}>
+          {tab === 'safeArea' && <SafeAreaScreen />}
+          {tab === 'baseline' && <BaselineScreen />}
+          {tab === 'doubleFlip' && <DoubleFlipScreen />}
+          {tab === 'textAlign' && <TextAlignScreen />}
+          {tab === 'inputs' && <InputsScreen />}
+          {tab === 'numbers' && <NumbersScreen />}
+          {tab === 'logical' && <LogicalPropsScreen />}
+          {tab === 'direction' && <DirectionScreen />}
+          {tab === 'shadows' && <ShadowsScreen />}
+          {tab === 'language' && (
+            <LanguageScreen bootstrapInfo={JSON.stringify(info, null, 1)} />
+          )}
+        </View>
+      </SafeAreaView>
+    </SafeAreaProvider>
   );
 }
 

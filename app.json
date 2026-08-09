@@ -31,7 +31,8 @@
           "supportsRTL": true,
           "forcesRTL": false
         }
-      ]
+      ],
+      "react-native-edge-to-edge"
     ],
     "extra": {
       "note": "supportsRTL enables RTL; forcesRTL is left false because this app tests RUNTIME switching. Flip forcesRTL to true only for the Option-A (native force) comparison on Mac."
