@@ -1433,3 +1433,90 @@ RTL state is now the top priority** — see the T2 entry for the four next steps
 - **Screenshot:** screenshots/t<N>-<platform>.png
 - **Implication:** <what changes in the guide>
 ```
+
+---
+
+## T27 — Line height & vertical centring, ANDROID cross-check
+
+- **Platform:** Android 15 / Galaxy S21 Ultra · release build · app `en`, `dir=ltr (state)`
+- **Screenshots:** `t27-lineheight-android-{1,2}.png`
+- **Why it matters:** T27 was written during the iOS session and framed as "the most common iOS
+  text complaint". The Android run shows **it is not iOS-specific at all.**
+
+### §1 — `justifyContent` is not inherited ✅ reproduces identically
+
+| Row | Setup | Android |
+| --- | --- | --- |
+| A | text is a **direct child** of the centring box | centred ✅ |
+| B | one `absoluteFill` wrapper in between | **pinned to the TOP** ❌ |
+| C | wrapper given its own `justifyContent` | centred ✅ |
+
+Same result as iOS. **R21 is cross-platform, not an iOS quirk** — any wrapper starts a new flex
+container and inherits no alignment. `textAlign: 'center'` would not fix B; it only governs the
+horizontal axis.
+
+### §2 — `lineHeight ≤ fontSize` clips ✅ reproduces
+
+At `fontSize: 16`:
+
+| `lineHeight` | Android |
+| --- | --- |
+| unset (baseline) | clean |
+| 16 — equal to fontSize | tight; `Á` touches the top edge |
+| **12 — smaller** | **descenders clipped** — the tails of `Q`, `p`, `ç`, `y` are cut ❌ |
+| 28 — comfortably larger | clean ✅ |
+
+Confirms **R21b on Android**. The probe string mixes Latin ascenders/descenders with Hebrew
+(`Ág Q pçy — שלום`) precisely because Hebrew glyphs are taller than Latin at the same `fontSize`,
+so a `lineHeight` tuned on English copy can clip after translation.
+
+### §3 — the `lineHeight = box height` centring trick ⚠️ platform difference to confirm
+
+Box height 48 in all three rows; only the centring method differs.
+
+| Row | Method | Android |
+| --- | --- | --- |
+| Row | Method | Android | iOS |
+| --- | --- | --- | --- |
+| A | flex centring (`justifyContent`), no `lineHeight` | centred ✅ | centred ✅ |
+| B | **no flex centring, `lineHeight: 48`** | **centred exactly ✅** | **NOT centred ❌** |
+| C | both together | centred ✅ | centred ✅ |
+
+### ⭐ CONFIRMED PLATFORM DIFFERENCE — the `lineHeight = height` trick is Android-only
+
+Row B (the red-tinted one) **centres exactly on Android and does not on iOS** — observed directly by
+comparing the two runs. This closes the open question the on-screen note asked.
+
+This is a textbook instance of **R20 (platform asymmetry)**, but running the *opposite* way to the
+usual one: here **Android is the forgiving platform** and iOS is strict. Most of this harness found
+the reverse, which is precisely why the asymmetry has to be checked per case rather than assumed.
+
+Why it happens: `lineHeight` sets the distance between baselines. Android distributes the extra
+leading symmetrically around the glyph box, so text lands centred; iOS applies it in a way that
+leaves the glyph sitting off-centre within the 48pt line. Row C exists because it is the combination
+people reach for once B "looks wrong" — and it works, but only because the `justifyContent` in it is
+doing the actual work.
+
+> **Rule:** never centre text with `lineHeight = container height`. It is an Android-only accident.
+> Centre with **`justifyContent` on the direct parent** (row A) — the only method verified correct on
+> both platforms — and treat `lineHeight` purely as a typographic setting.
+
+### §6 — ellipsis side under truncation ✅ correct on Android
+
+`numberOfLines={1}` in a narrow box, app in **English** (`dir=ltr (state)`):
+
+| String | Ellipsis lands |
+| --- | --- |
+| Hebrew | **left** ✅ |
+| English (control) | **right** ✅ |
+| Mixed (`שלום World 123 שלום`) | left ✅ |
+| Hebrew, `numberOfLines={2}` | left, on line 2 ✅ |
+
+Truncation **respects the text's own direction** — and notably it did so while the app layout was
+LTR, so the engine is reading the string's script rather than the layout direction. Matches the iOS
+result (T27 §6b), so this is correct on both platforms.
+
+### §7 — the real-world button shape ✅
+
+Buttons using **flex centring only** — the pattern R21c recommends — render correctly on Android,
+including the mixed-script label `Save · 123 · שמור`. This is the shape to copy into product code.

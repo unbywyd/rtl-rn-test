@@ -1109,6 +1109,36 @@ physical side and not from the app's direction flag — it was correct while the
 
 ---
 
+## R21c · Never centre text with `lineHeight = container height` — Android-only accident
+
+**Status:** ✅ measured on BOTH platforms — the comparison is the finding
+
+A fixed-height box (48) with the text centred three different ways:
+
+| Method | Android | iOS |
+| --- | --- | --- |
+| `justifyContent: 'center'` on the direct parent | centred ✅ | centred ✅ |
+| **`lineHeight: 48`, no flex centring** | **centred exactly ✅** | **NOT centred ❌** |
+| both together | centred ✅ | centred ✅ |
+
+`lineHeight` sets baseline-to-baseline distance. Android distributes the extra leading symmetrically
+around the glyph box, so the text happens to land centred; iOS does not, leaving it off-centre inside
+the same 48pt line.
+
+**Note the direction of the asymmetry.** Most findings in this harness had **iOS** as the forgiving
+platform (R20); this one is the reverse. That is exactly why an asymmetry must be measured per case
+and never assumed from a previous result.
+
+**Rule for the agent:**
+> Centre text vertically with **`justifyContent: 'center'` on the direct parent** — the only method
+> verified on both platforms. Never use `lineHeight` equal to the container height as a centring
+> mechanism: it is an Android-only coincidence that ships broken on iOS.
+>
+> And remember `justifyContent` does not inherit (R21) — if any wrapper sits between the box and the
+> text, the wrapper needs its own.
+
+---
+
 ## R22 · Do not drive direction from `forceRTL` + reload — drive it from app state
 
 **Status:** ✅ measured on both platforms, and this is the rule that unifies them
@@ -1210,6 +1240,73 @@ page itself RTL from a `DirectionProvider`, the island reading `1·2·3` while i
 ✅ **Runtime updates work — no remount required.** Mutating `direction` on an already-mounted node
 applies immediately (T29 row G). A `key={dir}` remount is **not** needed; this is the one place
 `direction` behaves *better* than `forceRTL`, which does require surface recreation.
+
+---
+
+### R22b · Android cross-check of the placement question (T29)
+
+**Status:** ✅ measured on Android — Galaxy S21 Ultra, Android 15, `dir=ltr (state)`
+
+The iOS session found that wrapping the app in `<View style={{direction}}>` flipped nothing and
+inferred that a `ScrollView` blocks inheritance. Android was then measured against the same
+five-placement probe:
+
+| Row | `direction: 'rtl'` applied to | Android |
+| --- | --- | --- |
+| **D** | the `ScrollView` itself | **`3 2 1` — flips ✅** |
+| **E** | the `ScrollView`'s `contentContainerStyle` | **`3 2 1` — flips ✅** |
+| F | nowhere (baseline) | `1 2 3` ✅ |
+
+**On Android a `ScrollView` does NOT block inheritance** — both placements work. Note the app was in
+English (`dir=ltr (state)`) while rows A–E still read `3 2 1`, confirming a statically-declared `rtl`
+island overrides the page direction regardless of app language.
+
+> **Portable placement:** put `direction` on the **`contentContainerStyle`** of the screen's scroll
+> container (row E), which is measured working on both platforms, rather than relying on inheritance
+> from a distant ancestor. This is the placement the `DirectionProvider` in
+> [`src/lib/direction.tsx`](src/lib/direction.tsx) is built around.
+
+---
+
+## R22c · THE WORKING RECIPE — copy this
+
+Everything above condenses to one pattern, verified on **Android 15** and **iOS 26.5.2**, RN 0.86.2 /
+Fabric, in both directions, with a runtime language switch and no reload.
+
+```jsx
+// 1. Wrap the app once. Direction comes from app state — never from I18nManager.
+<DirectionProvider lang={lang}>
+  <App />
+</DirectionProvider>
+
+// 2. Inside, write plain logical values. Yoga mirrors them. No isRTL anywhere.
+<View style={{ flexDirection: 'row', justifyContent: 'flex-start', marginStart: 16 }} />
+
+// 3. Only two things Yoga cannot infer — take them from the SAME state, via the hook:
+const { isRTL } = useDirection();
+<Icon style={{ transform: [{ scaleX: isRTL ? -1 : 1 }] }} />   // directional icons
+<TextInput style={{ textAlign: isRTL ? 'right' : 'left' }} />  // input alignment
+
+// 4. Always-LTR values keep their bidi isolation, independently of all the above:
+<Text>{'⁦'}{phone}{'⁩'}</Text>                        // +972 54-123-4567
+```
+
+**What this replaces**
+
+| Old pattern | Why it is abandoned |
+| --- | --- |
+| `I18nManager.forceRTL()` + reload | No working configuration on iOS (T18, Release build). On Android it works but `isRTL` then lies. |
+| `I18nManager.isRTL` for icons/`textAlign` | Reads `false` on Android while mirrored; never becomes `true` on iOS. Wrong on both. |
+| `isRTL ? 'row-reverse' : 'row'` | Double flip when the flag is right, silent no-op when it is wrong. |
+| `key={dir}` remount on language change | Unnecessary — `direction` applies on a live node with no remount (T29 row G). |
+
+**What stays**
+
+- `forceRTL` in **`app.json`** only (`expo-localization` plugin), for the very first frame before JS runs.
+- A language switch that reloads **only** when the direction changes — still correct, still cheap.
+- BiDi isolation on every always-LTR value. Orthogonal to direction, and required regardless.
+
+**Cost:** one provider at the root, one hook at two call sites per screen. That is the whole thing.
 
 ---
 
