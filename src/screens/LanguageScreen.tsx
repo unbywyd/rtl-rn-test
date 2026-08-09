@@ -27,11 +27,19 @@ type LastAction = {
   to: string;
   directionChanged: boolean;
   isRTLAtSwitch: boolean;
-  strategy: ReloadStrategy | 'not-reloaded';
+  strategy: ReloadStrategy | 'not-reloaded' | 'live-direction';
   at: string;
 };
 
-export default function LanguageScreen({ bootstrapInfo }: { bootstrapInfo: string }) {
+export default function LanguageScreen({
+  bootstrapInfo,
+  liveDir,
+  onToggleLiveDir,
+}: {
+  bootstrapInfo: string;
+  liveDir: boolean;
+  onToggleLiveDir: (v: boolean) => void;
+}) {
   const { t, i18n } = useTranslation();
   const [lastAction, setLastAction] = useState<LastAction | null>(null);
   const strategies = probeReloadStrategies();
@@ -74,6 +82,17 @@ export default function LanguageScreen({ bootstrapInfo }: { bootstrapInfo: strin
       return;
     }
 
+    if (liveDir) {
+      // T28: direction comes from app state via the `direction` prop (R22).
+      // No forceRTL, no reload — the language change alone re-renders the
+      // content island with the new direction. The whole point of the
+      // experiment is that nothing else is needed.
+      action.strategy = 'live-direction';
+      await AsyncStorage.setItem(LAST_ACTION_KEY, JSON.stringify(action));
+      setLastAction(action);
+      return;
+    }
+
     // T12: direction flipped. Set the native flag, record what we did, reload.
     I18nManager.forceRTL(isRTLLanguage(target));
     action.strategy = 'pending' as ReloadStrategy;
@@ -105,6 +124,29 @@ export default function LanguageScreen({ bootstrapInfo }: { bootstrapInfo: strin
         <Mono>platform={Platform.OS} · expo-updates NOT installed</Mono>
         <Expect text="MISMATCH does NOT mean the layout is wrong — check the layout itself." />
         <Expect text="Measured: layout mirrors correctly while this flag reads false (R1)." />
+      </Section>
+
+      <Section
+        title="⭐ T28 · Live direction from app state (R22)"
+        hint="direction: dir on the content island, derived from the language. No forceRTL, no reload."
+      >
+        <Row>
+          <Pressable
+            onPress={() => onToggleLiveDir(!liveDir)}
+            style={[st.btn, liveDir && st.btnActive]}
+          >
+            <Text style={[st.btnText, liveDir && st.btnTextActive]}>
+              {liveDir ? 'LIVE DIRECTION: ON' : 'LIVE DIRECTION: OFF'}
+            </Text>
+          </Pressable>
+        </Row>
+        <Mono>
+          island dir={liveDir ? (langIsRTL ? 'rtl' : 'ltr') : 'native (flag)'} · isRTL=
+          {String(I18nManager.isRTL)}
+        </Mono>
+        <Expect text="ON: switching he↔en must flip EVERY tab instantly, with no reload and isRTL unchanged." />
+        <Expect text="The chrome (header/tab bar) is deliberately outside the island and must NOT flip." />
+        <Expect text="isRTL-keyed code (T2 blocks 2-4, T5 ternaries) must STILL be wrong — direction does not fix the flag." />
       </Section>
 
       <Section title="Switch language" hint="he→ar: no restart. he→en: direction flip + reload.">

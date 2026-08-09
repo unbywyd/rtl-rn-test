@@ -98,6 +98,7 @@ export type BootstrapInfo = {
  * Returns diagnostics plus whether the caller must reload before mounting.
  */
 export async function bootstrapLanguage(): Promise<BootstrapInfo> {
+  // eslint-disable-next-line rtl/no-isrtl -- diagnostics: the tests read this
   const isRTLBefore = I18nManager.isRTL;
   const stored = await getStoredLanguage();
   const resolved =
@@ -112,6 +113,7 @@ export async function bootstrapLanguage(): Promise<BootstrapInfo> {
   let flagFlipped = false;
   let needsRestart = false;
 
+  // eslint-disable-next-line rtl/no-isrtl -- bootstrap compares flag vs language on purpose
   if (I18nManager.isRTL !== shouldBeRTL && Platform.OS !== 'web') {
     I18nManager.forceRTL(shouldBeRTL);
     flagFlipped = true;

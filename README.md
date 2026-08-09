@@ -52,6 +52,41 @@ whole reason this repo exists.
 | T8 Logic | T8, T9, T20 | `*Inline*` family, precedence traps, silent no-ops |
 | T10 Dir | T10 | Does the `direction` style prop work on Android? |
 | T14 Shadow | T14 | `shadowOffset` vs `elevation` vs `boxShadow` |
+| T27 Line | T27 | Why is text clipped or off-centre in buttons and inputs on iOS? |
+| T29 Where | T29 | Where must `direction` sit, and does it survive a runtime change? |
+
+---
+
+## The answer this repo arrived at
+
+`I18nManager.forceRTL()` + reload is **not portable**. It works on Android (while `isRTL` lies about
+it) and has **no working configuration on iOS** — measured in a dev build *and* in a Release build
+with Metro killed and the app freshly installed.
+
+What does work, on both platforms and in both directions, is driving direction from **app state**:
+
+```jsx
+<DirectionProvider lang={lang}>   // one wrapper, at the root
+  <App />
+</DirectionProvider>
+```
+
+- `src/lib/direction.tsx` — the wrapper plus `useDirection()` for the two things Yoga cannot
+  inherit: mirrored icons and explicit `textAlign`
+- Logical properties inside (`marginStart`, `start`/`end`, plain `'row'`) mirror automatically
+- **No `isRTL` anywhere** — the flag is unreliable on Android and never becomes true on iOS
+- `forceRTL` stays only in `app.json`, for the first frame before JS runs
+
+Full reasoning: **R22** in [SKILL_RULES.md](SKILL_RULES.md). Evidence: T2/T10/T12/T18/T28/T29 in
+[RESULTS.md](RESULTS.md).
+
+## Tooling built along the way
+
+| What | Where | Why |
+| --- | --- | --- |
+| **RTL linter** — 5 rules, unit-tested | [`tools/eslint-plugin-rtl/`](tools/eslint-plugin-rtl/index.js) | Every bug measured here is *silent*. Prose guidance is forgotten; a lint error is not. `npm run lint:rtl` · `npm run test:rtl-rules` (**R23**) |
+| **iOS screenshot capture** | [`scripts/ios-screenshot.sh`](scripts/ios-screenshot.sh) | On iOS 26 `idevicescreenshot` and `devicectl` both fail. `pymobiledevice3 … --userspace` works with no root |
+| **Android tall-screen capture** | [`scripts/capture-tab.py`](scripts/capture-tab.py) | Scroll-and-stitch via `adb`; no iOS equivalent exists |
 
 Full procedures and pass/fail criteria: **[TEST_PLAN.md](TEST_PLAN.md)**
 Progress and checklist: **[TODO.md](TODO.md)**
@@ -93,7 +128,16 @@ RTL results measured there are meaningless.
 
 ## Status
 
-Static checks are done (see RESULTS.md). Android and iOS runtime passes are pending.
+- **Android runtime pass — complete** (Galaxy S21 Ultra + Pixel 6 Pro emulator). See `SUMMARY.md`.
+- **iOS runtime pass — substantially complete** (iPhone 16 Pro Max, iOS 26.5.2, Xcode 26.2).
+  T2 · T3/T4 · T5 · T7 · T8/T9 · T10 · T12 · T14 · T17 · T18 · T21–T25 · T27 · T28 · T29 measured.
+- **Next: re-run Android** for the tests added during the iOS session (T27, T28, T29) and for the
+  ones the iOS pass could only measure in an LTR layout. Open items are listed in `TODO.md`.
+
+⚠️ **Build note:** Expo SDK 57 does not compile on **Xcode 26.2** out of the box —
+`expo-modules-jsi` hits a Swift 6.2 type-inference error. This repo patches it in `node_modules`,
+which **any `npm install` erases**. See finding **B1** in `RESULTS.md`; it needs a `patch-package`
+entry to be reproducible.
 
 ⚠️ This is a public repository. It contains no secrets, credentials, or code from private
 projects.

@@ -468,6 +468,38 @@ of alignment tuning fixes it.
 The broken one is worse than "the plus moved": the `972` country group detached from the
 front as well, producing a string that cannot be dialled. The fixed one is exactly correct.
 
+### ⭐ iOS pass — three refinements (T7, iPhone 16 Pro Max, iOS 26.5.2)
+
+**1. Reproduces on iOS. Research claiming otherwise is wrong.** Five value types were corrupted
+inside Arabic text, in an **LTR** app:
+
+| Type | `raw` | with isolate |
+| --- | --- | --- |
+| negative | `القيمة: 123.456-` | `القيمة: -123.456` |
+| temperature | `القيمة: C°5-` | `القيمة: -5°C` |
+| math | `القيمة: 25 = 13 - 12` | `القيمة: 12 - 13 = 25` |
+
+**2. A bare LRM is NOT always enough — prefer the isolate.** For a price, LRM repaired the sign but
+displaced the currency symbol:
+
+| | Rendered |
+| --- | --- |
+| `raw` | `القيمة: 99.90- ₪` ❌ |
+| `LRM` | `القيمة: ₪ -99.90` ⚠️ sign fixed, **`₪` on the wrong side** |
+| isolate (`LRI…PDI`) | `القيمة: -99.90 ₪` ✅ |
+
+> When the value carries its own non-digit symbol — currency, unit, percent — **use the isolate**.
+> A bare LRM fixes the visible half of the bug and silently leaves the rest.
+
+**3. The trigger is the surrounding CONTEXT, not the value.** The identical string `-123.456` is
+safe after a Latin label (`raw:`) and corrupted after an Arabic one (`القيمة:`). Two consequences:
+
+- **This happens in LTR apps.** "We don't support RTL" is not protection — one Arabic or Hebrew
+  string with an interpolated number is enough.
+- **A Latin-labelled test harness cannot see this bug.** Debug output like `value: -123.456` sets an
+  LTR paragraph direction and neutralises it. Test values inside real translated sentences.
+- `Intl.NumberFormat` output is **not** self-protecting; formatting does not make interpolation safe.
+
 This confirms **both halves are required** — `textAlign` pins the block, the LRM fixes
 character order. Neither alone is sufficient.
 
@@ -869,6 +901,354 @@ Two identical Hebrew strings, one with `writingDirection: 'rtl'` and one with `'
 Also confirmed here: an explicit `textAlign` **overrides layout direction** — a
 `textAlign: 'left'` row stayed left-aligned inside the RTL screen. That is what makes it the
 correct tool for always-LTR data.
+
+---
+
+## R20 · Platform asymmetry: iOS forgives what Android punishes — always write the intersection
+
+**Status:** ✅ measured, iPhone 16 Pro Max (iOS 26.5.2) vs Galaxy S21 Ultra (Android 15)
+
+**This is a meta-rule. It governs how every other platform-specific rule in this file should
+be applied, and how an agent should weigh "it works on my device".**
+
+**What was measured (T25, blur).** The same three variants, one screen, both platforms:
+
+| Variant | Android | iOS |
+| --- | --- | --- |
+| A · bare `<BlurView intensity={50} />` | ❌ flat tint, stripes stay sharp | ✅ real blur |
+| B · `blurMethod` set, no `BlurTargetView` | ❌ flat tint | ✅ real blur |
+| C · `BlurTargetView` + `blurTarget` ref, sibling placement | ✅ real blur | ✅ real blur |
+
+Evidence: `screenshots/t25-blur-ios.png` vs `screenshots/t25-blur-sibling-final.png`.
+
+**The asymmetry.** iOS accepted **all three**. Android accepted **one**. So:
+
+- Writing the pattern that passes on **iOS** yields code that is **broken on Android** — silently.
+  No crash, no warning, no error; blur degrades to a flat tint that looks intentional in review.
+- Writing the pattern that passes on **Android** yields code that works on **both**. The extra
+  scaffolding is inert on iOS and costs nothing.
+
+> **A green result on iOS is not evidence. A green result on Android usually is.**
+
+**Consequences for an agent:**
+
+1. **Write the strict variant unconditionally.** Do not branch on `Platform.OS` to strip the
+   scaffolding the permissive platform does not need — the branch removes redundancy that was free
+   and adds a path only one platform exercises.
+2. **Never conclude "this works" from an iOS-only test.** When only one device is available and it
+   is an iPhone, the honest status is *unverified*, not *passing*.
+3. **When two patterns both render correctly, prefer the one with no failure mode on either
+   platform** — not the shorter one. Breadth of "what seems to work" is a property of the permissive
+   platform, not of the pattern.
+
+**This generalizes past blur.** The same shape appears in T27 §4: `verticalAlign` is documented
+`Android`, and on iOS it is a **silent no-op** — `top`, `middle` and `bottom` render identically.
+The style is accepted, so it reads as working. Same failure class as `borderInlineStartWidth`
+(R15) and `writingDirection` (R13): accepted, inert, invisible in review.
+
+**The inverse trap — do not overcorrect.** "Permissive" describes *which platform silently swallows
+a wrong pattern*, **not** which platform has fewer bugs. iOS has failures Android does not:
+vertical centring lost through an `absoluteFill` wrapper (R21), and `lineHeight ≤ fontSize`
+clipping glyph tops (T27 §2). **Both platforms remain mandatory for coverage.** The asymmetry is
+about which platform can *falsify* a pattern — only the strict one can.
+
+### Three failure shapes — each needs a different defence
+
+Measured examples, in increasing order of how hard they are to catch:
+
+| Shape | Example | Detected by |
+| --- | --- | --- |
+| **Works vs broken** | T25 blur: iOS blurs on all three variants, Android only on one | Testing on the **strict** platform |
+| **Silent no-op** | T27 §4 `verticalAlign` on iOS: `top`/`middle`/`bottom` identical | Knowing the **docs' platform tag** — nothing at runtime says a word |
+| **Works differently** | T24 §10: a multiline `TextInput` lifts the whole field on Android, but only to the **caret** on iOS — one visible row | **Side-by-side comparison of the same interaction.** Nothing else finds it |
+
+The third shape is the reason a cross-platform harness exists at all. Both platforms *pass*; a
+screenshot from either one looks correct in isolation; code review sees a config that is obviously
+right. It surfaces only as a user complaint. Concretely: `bottomOffset` on
+`KeyboardAwareScrollView` is measured from the **caret**, not the field's bottom edge — identical for
+single-line inputs, divergent the moment the field is taller than one line.
+
+> When a prop's effect depends on a measurement (caret vs element, content vs container), assume the
+> two platforms measure from different anchors until a side-by-side test says otherwise.
+
+---
+
+## R21 · `justifyContent` reaches direct children only — any wrapper silently breaks centring
+
+**Status:** ✅ measured, iOS 26.5.2 (Android column pending)
+
+**What was measured (T27 §1).** Three fixed-height boxes, all with `justifyContent: 'center'`.
+Only the wrapper between the box and the text differs:
+
+| | Structure | Result |
+| --- | --- | --- |
+| A | `<View center><Text/></View>` | ✅ centred |
+| B | `<View center><View absoluteFill><Text/></View></View>` | ❌ **pinned to the top** |
+| C | `<View center><View absoluteFill center><Text/></View></View>` | ✅ centred |
+
+Evidence: `screenshots/t27-lineheight-ios-1.png`. Found in the wild first — it is why the T25
+blur screen's control text sits at the top of block C but is centred in blocks A and B.
+
+**Why.** `justifyContent` is **not inherited**. It positions a flex container's *direct children*.
+An inserted wrapper becomes the only direct child — it already fills the box, so centring it is a
+no-op — and the wrapper itself declares no alignment, so the text falls to the cross-axis start.
+
+`StyleSheet.absoluteFill` is the usual culprit: it reads like a transparent pass-through but is a
+full flex container.
+
+**The trap that makes this survive review:** the text usually already has
+`textAlign: 'center'`, which reads as "this text is centred". It governs the **horizontal** axis
+only and does nothing for the vertical one.
+
+```jsx
+// ❌ centring never reaches the text
+<View style={{ justifyContent: 'center' }}>
+  <View style={StyleSheet.absoluteFill}>
+    <Text style={{ textAlign: 'center' }}>label</Text>
+  </View>
+</View>
+
+// ✅ every flex container that has a child to place declares its own alignment
+<View style={{ justifyContent: 'center' }}>
+  <View style={[StyleSheet.absoluteFill, { justifyContent: 'center' }]}>
+    <Text style={{ textAlign: 'center' }}>label</Text>
+  </View>
+</View>
+```
+
+> When adding a wrapper — an `absoluteFill` overlay, a gesture/animated container, a
+> `BlurTargetView` — check whether it just orphaned the alignment of everything beneath it.
+
+**Related — vertical centring in buttons and inputs (T27 §3–§5).** Measured on iOS:
+
+- `justifyContent` on the direct parent — ✅ works, no caveat, the method to standardise on
+- `lineHeight` equal to box height — ✅ centred exactly, but the same property **clips** when set at
+  or below `fontSize` (§2), so it carries a failure mode flexbox does not
+- `verticalAlign` / `textAlignVertical` — ❌ Android-only, silent no-op on iOS
+- `paddingVertical: 0` on a fixed-height `TextInput` — ⚪ no-op; the field was already centred
+
+⚠️ Per R20, §3 and §5 measured **iOS only**, where several methods appeared to work. Until the
+Android pass runs, treat everything except `justifyContent` as **unverified**.
+
+See **R21b** for the clipping side of this, which is a separate failure with its own trigger.
+
+---
+
+## R21b · `lineHeight ≤ fontSize` clips text — and translation is what triggers it
+
+**Status:** ✅ measured, iOS 26.5.2 / iPhone 16 Pro Max (T27 §2). Android column pending.
+
+This is the single most common iOS text complaint — *"the text is cut off"* / *"the button label is
+missing its accents"* — and it is not a font bug or a platform quirk. It is a `lineHeight` that is
+too small for the glyphs it has to contain.
+
+**What was measured.** `fontSize: 16` in every row, tinted background so the real text box is
+visible, string `Ág Q pçy — שלום` (Latin ascenders, descenders, an accent, and Hebrew):
+
+| `lineHeight` | Result |
+| --- | --- |
+| unset | ✅ clean — the box grows to fit |
+| **16** — *equal* to `fontSize` | ❌ **the acute on `Á` is cut** |
+| **12** — below `fontSize` | ❌ **badly clipped**: accents gone, Hebrew tops sliced |
+| 28 | ✅ clean |
+
+Evidence: `screenshots/t27-lineheight-ios-1.png`.
+
+**Why `lineHeight: fontSize` is not "tight but safe".** `fontSize` describes the em size, not the
+ink. Ascenders, accents and descenders live **outside** it. Setting `lineHeight` equal to `fontSize`
+leaves zero room for them, so they are clipped — and English lowercase without accents usually
+survives, which is exactly why the bug ships.
+
+**The i18n trigger — this is why the rule belongs in an RTL guide.** Hebrew and Arabic glyphs are
+**taller** than Latin at the same `fontSize`. A `lineHeight` tuned against `Save` can clip once the
+same label becomes `שמור`. The bug appears **at translation time**, in a build nobody re-reviewed,
+in a language the reviewer may not read.
+
+```jsx
+// ❌ clips accents and Hebrew — the classic "tight line height"
+{ fontSize: 16, lineHeight: 16 }
+
+// ❌ worse, and it is what "make it more compact" produces
+{ fontSize: 16, lineHeight: 12 }
+
+// ✅ leave room for ink outside the em box
+{ fontSize: 16, lineHeight: 24 }        // ~1.4-1.5x is a safe default
+{ fontSize: 16 }                         // or omit it — the box grows to fit
+```
+
+> **Rule:** never set `lineHeight` at or below `fontSize`. If a design needs tight text, ~1.3× is the
+> floor, and it must be checked against the **tallest script the app ships**, not against English.
+> Omitting `lineHeight` entirely is always safe — the text box sizes itself.
+
+**Do not reach for `lineHeight` to centre text vertically.** It does centre exactly when set equal to
+the box height (T27 §3), but it is the same property that clips when it is small — so it carries a
+failure mode `justifyContent` does not have. Centre with `justifyContent` on the direct parent
+(R21); use `lineHeight` for line spacing only.
+
+**Related, same screen:** with `numberOfLines={2}` and `lineHeight: 14` the two lines **overlapped
+vertically** (T27 §6) — tight line height breaks multi-line text before it breaks single-line text.
+
+### ✅ Truncation needs no RTL handling — the `…` follows the text
+
+Measured on iOS (T27 §6b, `numberOfLines={1}` in a 180dp box, `screenshots/t27-ellipsis-ios.png`):
+
+| String | Text hugs | Ellipsis |
+| --- | --- | --- |
+| Hebrew | right | **left** ✅ |
+| English | left | **right** ✅ |
+| Mixed | — | at the reading end of the run ✅ |
+
+The ellipsis is placed from the **paragraph direction of the string itself**, not from a fixed
+physical side and not from the app's direction flag — it was correct while the layout was LTR and
+`isRTL === false`. Same mechanism as default text alignment (R12) and bidi reordering (R14).
+
+> Do **not** special-case truncation for RTL. No `textAlign`, no `isRTL`, no per-language branch.
+> Any code that "fixes" the ellipsis side is fixing something that already works, and will break it.
+
+⚠️ Android column pending — per R20 this is an iOS-only measurement so far.
+
+---
+
+## R22 · Do not drive direction from `forceRTL` + reload — drive it from app state
+
+**Status:** ✅ measured on both platforms, and this is the rule that unifies them
+
+**Scope of the iOS failure — settled by T18.** The dev-client result was reproduced on a **Release
+build with Metro killed and the app freshly installed**: still `isRTL=false`, still an LTR layout.
+So this is **not** a development-only artifact — `forceRTL` + `reloadAppAsync()` has **no working
+configuration on iOS** in this harness, despite RN#49455's fix being present in 0.86.2.
+(Unmeasured here: `Updates.reloadAsync()` from **expo-updates**, a full host relaunch, which the
+community reports working. The failing ingredient is plausibly the reload mechanism, not `forceRTL`.)
+
+**The problem, measured.** The conventional pattern — `I18nManager.forceRTL(shouldBeRTL)` followed by
+a reload, protected by a one-shot guard — **fails differently on each platform**:
+
+| | Android | iOS |
+| --- | --- | --- |
+| Flip applied after reload? | ✅ yes | ❌ **no** |
+| `isRTL` afterwards | `false` **while the layout is mirrored** (the flag lies) | `false` **and the layout really is LTR** |
+| Net effect | works, but the flag cannot be trusted | **never reaches RTL at all** |
+
+On iOS this was isolated to a single step. With the language persisted and the guard freshly written,
+a clean `he → en → he` cycle reported `flagFlipped: true`, ran `reloadAppAsync()`, and came back with
+`isRTL: false` and an LTR layout. `forceRTL` does not survive a JS reload there — plausibly because it
+writes `NSUserDefaults` (`AppleTextDirection`), which UIKit reads when the window is created, and a
+dev reload never recreates the window.
+
+**So the pattern has no portable form.** One platform needs the reload and lies about the flag; the
+other ignores the flip entirely. Any code branching on `Platform.OS` here is encoding two bugs.
+
+### The fix: `direction` from app state
+
+`direction` is the one direction primitive **measured working on both platforms** (R16 on Android,
+T10 on iOS). On iOS it produced a mirrored layout inside a process where `isRTL === false` and
+`forceRTL` had already failed — it does not depend on the broken machinery at all:
+
+```jsx
+// ONE source of truth: the app language. No global flag, no reload, no guard.
+const dir = isRTLLanguage(lang) ? 'rtl' : 'ltr';
+
+<View style={{ direction: dir, flex: 1 }}>
+  {/* logical properties inside mirror against `dir` */}
+</View>
+```
+
+- applies **instantly** on language change — no restart, no splash, no guard, no restart-loop risk
+- identical on both platforms
+- `isRTL` is never consulted, so its unreliability stops mattering
+
+### The one caveat — measured, and it matters
+
+**`isRTL` does NOT follow `direction`.** Inside a `direction` island the flag keeps its app-level
+value (T10, confirmed on screen: *"Inside an ltr island, isRTL still reads: false"*). Anything keyed
+off `isRTL` — mirrored icons via `scaleX`, `textAlign` chosen by ternary, `row-reverse` overrides —
+**will not follow the island** and will point the wrong way inside it.
+
+So `direction` and `isRTL` are two independent sources of truth that can silently disagree. Derive
+everything from **one** place — the language — and be explicit inside islands:
+
+```jsx
+// ✅ both derived from `lang`, never from I18nManager
+const dir  = isRTLLanguage(lang) ? 'rtl' : 'ltr';
+const flip = isRTLLanguage(lang) ? -1 : 1;
+
+<View style={{ direction: dir }}>
+  <Text style={{ textAlign: dir === 'rtl' ? 'right' : 'left' }}>{label}</Text>
+  <Icon style={{ transform: [{ scaleX: flip }] }} />
+</View>
+```
+
+### Where `forceRTL` is still needed
+
+Keep it **only** for what genuinely requires the native flag — first-frame direction before JS runs,
+and system-level UI. Use the `expo-localization` plugin props rather than a hand-written AppDelegate
+patch:
+
+```jsonc
+["expo-localization", { "supportsRTL": true, "forcesRTL": false }]
+```
+
+> **Rule:** direction is application state, not a native global. Render it like any other state.
+> Reach for `forceRTL` only for the first frame, and never make correctness depend on a reload.
+
+**Ecosystem confirmation.** This failure class is [RN#48311](https://github.com/facebook/react-native/issues/48311),
+officially fixed by [PR#49455](https://github.com/facebook/react-native/pull/49455) (`_updateLayoutContext`
+on surface recreation, 0.76+) — the fix code is **present in 0.86.2 and the bug still reproduces** in
+the Expo dev client; [expo#39752](https://github.com/expo/expo/issues/39752) is open on SDK 54 with the
+same symptom. The community's working answers are (a) `Updates.reloadAsync()` from **expo-updates** — a
+full host relaunch, works in production but needs expo-updates and still restarts the app — and
+(b) the [expo-rtl](https://dev.to/ibrahimtarhini01/why-does-react-native-make-you-restart-the-app-just-to-switch-language-i-fixed-it-2pn2)
+package, which drops the native flag and propagates direction via React context + JS style flipping —
+the same architecture as this rule, one layer higher. Convergent evolution: everyone who solves
+runtime RTL switching ends up **not using the native flag as the source of truth**.
+
+✅ **Both directions now verified on iOS (T29).** An `rtl` island inside an LTR page mirrors (T10),
+and a `direction: 'ltr'` island inside a genuinely RTL page pins its content LTR — measured with the
+page itself RTL from a `DirectionProvider`, the island reading `1·2·3` while its surroundings read
+`3·2·1`. Matches Android, where both directions were already verified.
+
+✅ **Runtime updates work — no remount required.** Mutating `direction` on an already-mounted node
+applies immediately (T29 row G). A `key={dir}` remount is **not** needed; this is the one place
+`direction` behaves *better* than `forceRTL`, which does require surface recreation.
+
+---
+
+## R23 · Enforce these rules with a linter, not with discipline
+
+**Status:** ✅ implemented and tested in this repo — [`tools/eslint-plugin-rtl/`](tools/eslint-plugin-rtl/index.js)
+
+Every RTL failure measured in this repo is **silent**: no crash, no warning, and the wrong branch
+usually renders as a plausible layout. Code review does not catch them (a `textAlign: 'center'` that
+governs the wrong axis reads as correct); single-platform QA does not catch them (R20); and an LLM
+following prose guidance forgets them the moment the context scrolls away. A linter catches all of
+them before the app runs, on both platforms at once.
+
+```bash
+npm run lint:rtl         # check the project
+npm run test:rtl-rules   # self-test the rules themselves
+```
+
+| Rule | Catches | Measured in |
+| --- | --- | --- |
+| `no-isrtl` | any read of `I18nManager.isRTL` | R1 (Android: flag lies) · T2 (iOS: flip never applies) |
+| `no-physical-styles` | `marginLeft`/`paddingRight`/`left`/`right`… — **auto-fixable** | R15 |
+| `no-dead-logical-props` | `borderInlineStartWidth` (does not exist), `verticalAlign`/`textAlignVertical` (Android-only, silent no-op on iOS) | T8 · T8c · T27 §4 |
+| `no-direction-ternary` | `flexDirection: isRTL ? 'row-reverse' : 'row'` — **the double flip** | T2 |
+| `require-bidi-isolate` | a value interpolated into RTL text with no isolate | R14 · T7 |
+
+**Verified working:** the five rules have RuleTester unit tests (valid + invalid cases), and a canary
+file containing all seven bad patterns produces exactly seven diagnostics. Running it against this
+repo surfaced only intentional uses, each now carrying an explicit
+`// eslint-disable-next-line rtl/no-isrtl` with a reason — which is the point: the exceptions become
+**visible and justified** instead of indistinguishable from mistakes.
+
+**Deliberately exempt:** `src/screens/**`. Those screens render the wrong patterns on purpose — they
+are the fixtures that produced the measurements.
+
+**Why this belongs in the skill.** Prose rules degrade: an agent writing a screen 40 turns later has
+lost the context. A lint error is re-delivered at exactly the moment the wrong line is written, with
+the measurement that justifies it in the message text. Ship the plugin alongside the guidance — the
+guidance explains *why*, the linter enforces *always*.
 
 ---
 
