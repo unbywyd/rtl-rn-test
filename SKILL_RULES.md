@@ -457,6 +457,40 @@ of alignment tuning fixes it.
 > For `TextInput`, combine `textAlign: 'left'` (pin the block) with an LRM-prefixed
 > placeholder — alignment and character order are two separate problems and both need solving.
 
+**Before/after proven side by side** in the same section, same string
+(`screenshots/t6-phone-ltr-fix.png`):
+
+| Variant | Rendered |
+| --- | --- |
+| Plain, no LTR handling | `54-123-4567 972+` ❌ |
+| `textAlign: 'left'` + LRM-prefixed placeholder | `+972 54-123-4567` ✅ |
+
+The broken one is worse than "the plus moved": the `972` country group detached from the
+front as well, producing a string that cannot be dialled. The fixed one is exactly correct.
+
+This confirms **both halves are required** — `textAlign` pins the block, the LRM fixes
+character order. Neither alone is sufficient.
+
+Email and URL values (`name@example.com`, `https://example.com/path?q=1`) rendered correctly
+even unmarked, because they contain no weak signed characters — but the same rule applies,
+since a leading `+`, `-` or a bare digit run can appear in IDs and codes.
+
+**It is not a `TextInput` problem — plain `<Text>` corrupts identically.** Two `<Text>` nodes,
+same string, only an LRM apart:
+```
+טלפון: 54-123-4567 972+      ← unmarked, CORRUPTED
+טלפון: ‎+972 54-123-4567      ← LRM-marked, CORRECT
+```
+
+> This matters more than the input case. Read-only surfaces — order cards, contact lists,
+> profile rows, receipts — render phone numbers next to RTL labels constantly, and none of
+> them involve a `TextInput`. Wrap the value at the point of display, not just at the point
+> of entry.
+
+**T6c also confirmed the one legitimate `row-reverse` override:** an icon beside an
+LTR-pinned phone field stayed visually adjacent to it, with the number rendering correctly.
+That remains the single justified use of a manual direction flip in layout.
+
 **This is the single most practically damaging RTL bug in the set**, because it silently
 corrupts data users act on rather than merely misplacing pixels.
 
