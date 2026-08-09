@@ -149,6 +149,72 @@ the `expo-localization` plugin additionally writes:
 
 ---
 
+## R8 · A reload mechanism is required — but `expo-updates` is NOT
+
+**Status:** ✅ measured, Galaxy S21 Ultra, project deliberately built **without** `expo-updates`
+
+**What was measured:** switching `en → he` in-app flipped the direction correctly. The app
+reloaded once, came back in Hebrew, and rendered fully mirrored — header right-aligned,
+tab bar running right-to-left. `package.json` contains no `expo-updates`.
+
+The reload used `reloadAppAsync()`, re-exported from the core **`expo`** package
+(`expo-modules-core`), documented to work in both release and debug builds.
+
+**Rule for the agent:**
+> `I18nManager.forceRTL()` writes a native flag; it does **not** re-lay-out the running JS
+> context. The new direction applies only after the bundle reloads — this is the real cause
+> of "RTL only works the second time the app opens".
+>
+> A reload mechanism is therefore **mandatory**, but `expo-updates` specifically is **not**.
+> Prefer `reloadAppAsync()` from `expo`. Reload only when the direction actually changed:
+> a same-direction switch (he → ar, en → ru) must be instant with no reload.
+>
+> Defer the reload past first mount (~250ms) — calling it during first render is a
+> documented crash/no-op hazard (expo#10598, expo#21347).
+
+**Corrects the prior guide**, which claimed the JS approach "cannot work" without
+`expo-updates`. It can. The failing project was missing *any* reload mechanism, which is a
+different diagnosis with a different fix.
+
+---
+
+## R9 · `adjustResize` does not survive edge-to-edge — the keyboard covers the input
+
+**Status:** ✅ measured AND fix verified on device (Galaxy S21 Ultra, Android 15)
+
+**What was measured:** tapping the input in T23 opened the keyboard **on top of the field**.
+After applying the fix below and reinstalling, the focused field stays visible — confirmed
+by the user on the same device. This rule is backed by a full broken → diagnosed → fixed →
+verified cycle, not by reading documentation.
+`dumpsys input_method` showed the contradiction precisely:
+```
+mInputShown=true          ← keyboard is open
+mServedView=null          ← bound to no view
+```
+The manifest already had `android:windowSoftInputMode="adjustResize"`, and it was not enough.
+
+**Why:** edge-to-edge is mandatory on Android 15. The window no longer resizes when the IME
+appears, so RN never learns the keyboard's height and a plain `ScrollView` cannot scroll the
+focused field into view. This is exactly the same failure family as safe-area insets: the
+system stopped resizing the window, and layout must read insets instead.
+
+**Rule for the agent:**
+> On Android 15+, `windowSoftInputMode="adjustResize"` alone does **not** keep a focused
+> input visible. Wrap the tree in `KeyboardProvider` and use `KeyboardAwareScrollView`
+> (`react-native-keyboard-controller`), which reads real IME insets.
+>
+> Merely installing the package does nothing — **`KeyboardProvider` must wrap the tree**, the
+> same silent-no-op trap as forgetting `SafeAreaProvider` (R3).
+>
+> Diagnostic: if `dumpsys input_method` reports `mInputShown=true` with `mServedView=null`,
+> the IME is open but bound to nothing — a layout/provider problem, not an input problem.
+
+**Generalisation worth stating in the skill:** Android 15 removed the two implicit
+conveniences RN layouts historically leaned on — window fitting for system bars, and window
+resizing for the keyboard. Both must now be handled explicitly through insets.
+
+---
+
 ## Pending — measured but not yet conclusive
 
 - **T3/T4 text alignment.** In an English (LTR) app, Hebrew strings with no `textAlign`

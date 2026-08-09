@@ -26,6 +26,10 @@ import {
 // react-native. RN's own SafeAreaView is iOS-only and a no-op on Android — a
 // very common cause of "it works on my iPhone" bottom-bar overlap.
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+// KeyboardProvider must wrap the tree for any keyboard-controller hook or
+// component to work. Without it they silently do nothing — the same class of
+// mistake as forgetting SafeAreaProvider.
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { StatusBar } from 'expo-status-bar';
 import { useTranslation } from 'react-i18next';
 
@@ -107,6 +111,7 @@ export default function App() {
     // zeros and every inset-aware layout silently degrades. Forgetting this is
     // the single most common safe-area mistake.
     <SafeAreaProvider>
+      <KeyboardProvider>
       <SafeAreaView style={st.safe} edges={['top', 'left', 'right']}>
         <StatusBar style="dark" />
         <Header />
@@ -126,6 +131,7 @@ export default function App() {
           )}
         </View>
       </SafeAreaView>
+      </KeyboardProvider>
     </SafeAreaProvider>
   );
 }

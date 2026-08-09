@@ -27,6 +27,7 @@ import {
   I18nManager,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { Section, Expect, Mono, C } from '../ui/kit';
 
 export default function SafeAreaScreen() {
@@ -35,9 +36,18 @@ export default function SafeAreaScreen() {
   const [focused, setFocused] = useState(false);
 
   return (
-    <ScrollView
+    // MEASURED BUG (Galaxy S21 Ultra, Android 15): a plain ScrollView left the
+    // focused input covered by the keyboard. dumpsys showed mInputShown=true with
+    // mServedView=null — the IME was open but bound to nothing.
+    //
+    // android:windowSoftInputMode="adjustResize" is NOT sufficient under
+    // edge-to-edge (mandatory on Android 15): the window no longer resizes, so RN
+    // never learns the keyboard's height. KeyboardAwareScrollView reads the real
+    // IME insets and scrolls the focused field into view.
+    <KeyboardAwareScrollView
       contentContainerStyle={[st.page, { paddingBottom: 48 + insets.bottom }]}
       keyboardShouldPersistTaps="handled"
+      bottomOffset={16}
     >
       <Text style={st.h1}>T21/T22/T23 · Safe area &amp; keyboard</Text>
 
@@ -143,7 +153,7 @@ export default function SafeAreaScreen() {
       <View style={st.lastCard}>
         <Text style={st.lastText}>LAST ELEMENT — must be fully visible</Text>
       </View>
-    </ScrollView>
+    </KeyboardAwareScrollView>
   );
 }
 
