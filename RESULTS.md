@@ -1520,3 +1520,42 @@ result (T27 §6b), so this is correct on both platforms.
 
 Buttons using **flex centring only** — the pattern R21c recommends — render correctly on Android,
 including the mixed-script label `Save · 123 · שמור`. This is the shape to copy into product code.
+
+---
+
+## T28 — Live direction from app state, ANDROID ✅ (closes R22c on both platforms)
+
+- **Platform:** Android 15 / Galaxy S21 Ultra · release build
+- **Screenshots:** `t28-android-live-dir.png` (before), `t28-he-live.png` (after)
+
+With `LIVE DIRECTION: ON`, switching `ru → he` flipped the entire content island **instantly**:
+headings moved right, the language buttons re-ordered `RU · HE · EN` right-to-left, all body text
+right-aligned.
+
+The header reported:
+```
+android · he · isRTL=false · dir=rtl (state)
+island dir=rtl · isRTL=false
+```
+
+**No `forceRTL`. No reload. `isRTL` never changed.** The direction came entirely from app state via
+the `direction` style prop.
+
+### The tab bar not flipping is CORRECT, not a bug
+
+The chrome (header + tab bar) sits **deliberately outside** the direction island, and the screen
+says so on itself. During this run it was initially read as a failure — worth recording, because an
+agent verifying this pattern will make the same mistake:
+
+> When direction is driven from state, only the subtree inside the provider mirrors. Anything
+> rendered outside it — a global header, a tab bar, a root-level modal — keeps the app's native
+> direction. That is a design decision to make explicitly, not an oversight to debug.
+
+### Status of R22c
+
+| Platform | `forceRTL` + reload | Direction from state |
+| --- | --- | --- |
+| Android | works, but `isRTL` lies about it | ✅ **works** |
+| iOS | ❌ no working configuration | ✅ **works** |
+
+**The recipe in R22c is now measured working on both platforms.** It is the only approach that is.

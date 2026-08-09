@@ -757,6 +757,24 @@ resolved version — the library has not been updated for current RN.
 | B | `blurMethod` only | **tint only** — identical to A ❌ |
 | C | target + ref + sibling | **real blur** — stripes become a soft gradient ✅ |
 
+### The platform asymmetry, stated plainly
+
+| | iOS | Android |
+| --- | --- | --- |
+| Panels that blurred | **almost all of them** | **only C** |
+| `blurMethod` required? | no | **yes** (defaults to `'none'`) |
+| `BlurTargetView` required? | no | **yes** |
+| `blurTarget` ref required? | no | **yes** |
+| `BlurView` must be a sibling? | no | **yes** |
+
+**iOS forgives every one of the four requirements; Android enforces all four.** This is R20 running
+in its usual direction — and it is why blur written and reviewed on a Mac ships to Android as a plain
+translucent rectangle, with no error, no warning, and a screenshot that looks fine on the reviewer's
+simulator.
+
+> Write the **Android** shape (all four conditions). iOS accepts it unchanged. The reverse does not
+> hold.
+
 **Test at a MID intensity, not 100.** At `intensity={100}` the blurred panel turns into a
 flat opaque slab, which is indistinguishable from a plain solid fill — during this session
 that briefly produced a wrong conclusion in both directions. At `50` the answer is
@@ -1128,6 +1146,12 @@ the same 48pt line.
 **Note the direction of the asymmetry.** Most findings in this harness had **iOS** as the forgiving
 platform (R20); this one is the reverse. That is exactly why an asymmetry must be measured per case
 and never assumed from a previous result.
+
+**Third instance, found by accident in the blur test.** In T25 the backdrop text sat centred in
+panels A and B but was **pinned to the top in panel C** — the only structural difference being that C
+places the content inside a `BlurTargetView`. The container had `justifyContent: 'center'`, but the
+`BlurTargetView` in between is a new flex container that inherits none of it. Any inserted
+wrapper — a blur target, an `absoluteFill`, a provider that renders a `View` — re-triggers this.
 
 **Rule for the agent:**
 > Centre text vertically with **`justifyContent: 'center'` on the direct parent** — the only method

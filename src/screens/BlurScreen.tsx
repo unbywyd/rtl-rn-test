@@ -92,7 +92,14 @@ export default function BlurScreen() {
 
         <Text style={st.lbl}>C · BlurView as SIBLING of BlurTargetView (docs pattern)</Text>
         <View style={st.cWrap}>
-          <BlurTargetView ref={targetRef} style={StyleSheet.absoluteFill}>
+          {/* R21 caught in the wild: cWrap sets justifyContent:'center', but this
+              BlurTargetView is a NEW flex container in between, so the backdrop
+              text was pinned to the top while panels A/B centred it. The wrapper
+              needs its own centring — inheritance does not happen. */}
+          <BlurTargetView
+            ref={targetRef}
+            style={[StyleSheet.absoluteFill, { justifyContent: 'center' }]}
+          >
             <View style={st.stripes}>
               {Array.from({ length: 12 }).map((_, i) => (
                 <View
