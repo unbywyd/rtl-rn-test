@@ -519,6 +519,42 @@ same string, only an LRM apart:
 > them involve a `TextInput`. Wrap the value at the point of display, not just at the point
 > of entry.
 
+### How to build an LTR island with an icon — the actual recipe
+
+A recurring practical question: *an icon beside a phone field must stay on the correct side; how do
+you get that reversal reliably?*
+
+**Why the common approach fails.** The usual `flexDirection: isRTL ? 'row-reverse' : 'row'` is keyed
+off `I18nManager.isRTL`, which is `false` on iOS always and `false` on Android whenever the flag is
+stale. The reversal is then **never requested** — it is not that the platform ignores `row-reverse`,
+it is that the ternary chose plain `'row'`.
+
+**Does `direction` affect `row-reverse`?** Yes. `direction` changes how Yoga resolves the main axis,
+so a plain `'row'` inside `direction: 'rtl'` already runs right-to-left. Adding `row-reverse` there
+flips it *back* to LTR — which is why stacking the two is so easy to get wrong.
+
+**✅ Preferred — declare the island, no direction branch at all:**
+```jsx
+<View style={{ direction: 'ltr', flexDirection: 'row' }}>
+  <PhoneIcon />                                                    {/* lands left */}
+  <TextInput style={{ textAlign: 'left' }} placeholder={LRM + hint} />
+</View>
+```
+Verified on both platforms (R16). It states the intent — *this subtree is LTR* — instead of
+hand-tuning the axis, and it cannot break when a direction flag is wrong, because it reads none.
+
+**⚠️ Acceptable — `row-reverse`, but from a trustworthy source:**
+```jsx
+const { isRTL } = useDirection();          // app state, NOT I18nManager
+flexDirection: isRTL ? 'row-reverse' : 'row'
+```
+Works, but carries a branch that the first form does not need.
+
+**❌ Never:** `flexDirection: I18nManager.isRTL ? 'row-reverse' : 'row'`.
+
+Remember the two problems stay separate: `direction` fixes **layout**, the LRM/isolate fixes
+**character order** (R14). The phone still needs its BiDi mark inside an `ltr` island.
+
 **T6c also confirmed the one legitimate `row-reverse` override:** an icon beside an
 LTR-pinned phone field stayed visually adjacent to it, with the number rendering correctly.
 That remains the single justified use of a manual direction flip in layout.
