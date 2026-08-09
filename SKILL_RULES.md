@@ -491,6 +491,53 @@ same string, only an LRM apart:
 LTR-pinned phone field stayed visually adjacent to it, with the number rendering correctly.
 That remains the single justified use of a manual direction flip in layout.
 
+### R14b · The trigger is the surrounding text, and you must isolate the VALUE, not the line
+
+**Status:** ✅ measured, T7 screen, Arabic build. This **refutes** RN issue #54713 as generally
+stated, and corrects how the isolation must be applied.
+
+**Signed numbers are NOT broken on their own.** Every triple below rendered identically and
+correctly in raw, LRM and isolate form:
+```
+-123.456   ·   +42   ·   12 - 13 = 25   ·   -5°C   ·   -99.90 ₪   ·   -12.5%   ·   10-20
+```
+Each of those lines begins with a Latin label (`raw:`), which establishes an LTR context — so
+the number is safe. RN #54713's claim that Android RTL reorders `-123.456` into `123.456-` did
+**not** reproduce on RN 0.86.2 in that form.
+
+**But the same value inside RTL text corrupts — and whole-line isolation does not save it.**
+The sentence `הטמפרטורה היא -5°C היום` rendered as:
+```
+היום C‏הטמפרטורה היא 5°-
+```
+The minus detached and trailed `5°`, and the `C` jumped to the front, away from the `°`.
+**All three variants failed**, because the LRM/isolate had been applied around the *entire
+line* rather than around the *value*.
+
+**Rule for the agent — this is the part that is easy to get wrong:**
+> BiDi corruption is triggered by the **surrounding text**, not by the number itself. A signed
+> value in a Latin-only string is safe; the same value beside an RTL word is not.
+>
+> Isolate the **value at its substitution point**, never the whole sentence:
+> ```jsx
+> // WRONG — isolating the line does nothing for a fragment inside it
+> <Text>{LRI}הטמפרטורה היא -5°C היום{PDI}</Text>
+>
+> // CORRECT — isolate the value itself
+> <Text>הטמפרטורה היא {LRI}-5°C{PDI} היום</Text>
+> ```
+> This is the same shape as the working phone fix, where the LRM sat immediately before the
+> number. Build it into the formatting helper (`formatPrice`, `formatPhone`, `formatTemp`) so
+> call sites cannot forget it.
+
+**`Intl` output is correct but not protected.** `Intl.NumberFormat` produced `-99.90 ₪`
+(he-IL), `-$99.90` (en-US) and `9.8.2026` (he-IL date) all correctly — signs in place, shekel
+symbol on the correct side. But `Intl` returns an ordinary string with no BiDi marks, so it
+corrupts exactly like any other value once placed inside RTL text.
+
+> Do not assume `Intl` handles direction for you. Isolate its result at the substitution
+> point like any other always-LTR value.
+
 **This is the single most practically damaging RTL bug in the set**, because it silently
 corrupts data users act on rather than merely misplacing pixels.
 

@@ -65,6 +65,36 @@ export default function NumbersScreen() {
         <Expect text="If 'raw' shows the sign on the wrong side and isolate fixes it, #54713 reproduces." />
       </Section>
 
+      <Section
+        title="⭐ Same numbers INSIDE RTL text"
+        hint="MEASURED: the cases above are safe because each line starts with a Latin label."
+      >
+        {[
+          { label: 'negative', v: '-123.456' },
+          { label: 'positive', v: '+42' },
+          { label: 'temperature', v: '-5°C' },
+          { label: 'price', v: '-99.90 ₪' },
+          { label: 'math', v: '12 - 13 = 25' },
+        ].map((c) => (
+          <View key={c.label} style={st.group}>
+            <Text style={st.lbl}>{c.label} — inside Arabic text</Text>
+            <View style={st.ruler}>
+              <Text style={st.t}>القيمة: {c.v}</Text>
+            </View>
+            <View style={st.ruler}>
+              <Text style={st.t}>
+                القيمة: {LRM}
+                {c.v}
+              </Text>
+            </View>
+            <View style={st.ruler}>
+              <Text style={st.t}>القيمة: {iso(c.v)}</Text>
+            </View>
+          </View>
+        ))}
+        <Expect text="If the first row of a triple differs from the other two, the RTL context is the trigger." />
+      </Section>
+
       <Section title="Intl formatting" hint="Does Intl output need isolation too?">
         <View style={st.ruler}>
           <Text style={st.t}>
