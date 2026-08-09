@@ -591,6 +591,42 @@ failing for absolute positioning **did not reproduce** here. iOS remains unteste
 
 ---
 
+## R16 · The `direction` style prop WORKS on Android (Fabric) — use it for LTR islands
+
+**Status:** ✅ measured on device, English (LTR) build, Galaxy S21 Ultra, RN 0.86.2 / Fabric.
+**This settles research open question Q2**, which the source review could not resolve.
+
+**What was measured**, three rows on one LTR page:
+
+| Row | Rendered |
+| --- | --- |
+| page default (no `direction`) | `1 2 3` left-to-right ✅ |
+| `direction: 'ltr'` island | `1 2 3` left-to-right ✅ (matches default, as expected in LTR) |
+| **`direction: 'rtl'` island** | **`3 2 1`, 1 rightmost** ✅ |
+
+The third row is decisive: the island genuinely overrode the page direction. The prop is
+**not** a no-op on Android.
+
+The conflicting evidence in the research corpus came from
+[#41289](https://github.com/facebook/react-native/issues/41289), which is RN 0.68 and closed
+as *Unsupported Version*. Under Fabric `direction` is parsed in shared C++, consistent with
+this result.
+
+**Rule for the agent:**
+> To pin a subtree to a fixed direction — an always-LTR block of phone numbers, IDs, code or
+> version strings inside an RTL screen — prefer:
+> ```jsx
+> <View style={{ direction: 'ltr' }}>…</View>
+> ```
+> over the `flexDirection: isRTL ? 'row-reverse' : 'row'` workaround. It states intent, needs
+> no direction check (and therefore cannot be broken by R1), and mirrors correctly.
+>
+> **Caveat:** `direction` changes Yoga layout resolution only. It does **not** change
+> `I18nManager.isRTL`, and it does **not** fix BiDi character order inside a string — a phone
+> number inside an `ltr` island still needs its LRM/isolate (R14).
+
+---
+
 ## R11 · Three providers that silently do nothing if forgotten
 
 **Status:** ✅ observed across this build
