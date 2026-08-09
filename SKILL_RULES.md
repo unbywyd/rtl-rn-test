@@ -719,34 +719,56 @@ resolved version — the library has not been updated for current RN.
 **Status:** ✅ measured, three-way comparison on device, Galaxy S21 Ultra, Expo SDK 57 /
 `expo-blur@57.0.2`
 
-| Panel | Setup | Result |
+| Panel | Setup | Result at `intensity={50}` |
 | --- | --- | --- |
-| A | default | **tint only** — stripes stay sharp, text readable through it ❌ |
-| B | `blurMethod="dimezisBlurView"` | **tint only** — identical to A ❌ |
-| C | `BlurTargetView` + `blurMethod` | **real blur** — stripes smeared, text unreadable ✅ |
+| A | default | **tint only** — stripe edges stay sharp ❌ |
+| B | `blurMethod` only | **tint only** — identical to A ❌ |
+| C | target + ref + sibling | **real blur** — stripes become a soft gradient ✅ |
 
-**Two separate requirements, both silent when missing:**
+**Test at a MID intensity, not 100.** At `intensity={100}` the blurred panel turns into a
+flat opaque slab, which is indistinguishable from a plain solid fill — during this session
+that briefly produced a wrong conclusion in both directions. At `50` the answer is
+unambiguous: **colours still distinguishable, edges fully smeared** is blur; sharp edges is
+a tint; uniform fill proves nothing.
 
-1. **`blurMethod` defaults to `'none'` on Android.** From the type definitions:
+**FOUR requirements, all mandatory. Miss any one and you silently get a tint:**
+
+1. **`blurMethod` defaults to `'none'` on Android:**
    ```ts
    /** Blur method to use on Android. @default 'none' @platform android */
    blurMethod?: 'none' | 'dimezisBlurView' | 'dimezisBlurViewSdk31Plus';
    ```
-2. **A `BlurTargetView` must wrap the content being blurred.** From `ExpoBlurView.kt`:
+2. **A `BlurTargetView` must wrap the content to be blurred** (`ExpoBlurView.kt`):
    ```kotlin
    if (blurTarget == null || blurMethod == BlurMethod.NONE) { return }
    ```
-
-Neither produces an error or a warning. The component renders, accepts every prop, and
-quietly draws a translucent rectangle.
+3. **Its ref must be passed as `blurTarget`.** This is the only one that warns:
+   ```
+   W ReactNativeJS: You have selected the "dimezisBlurView" blur method, but the
+   `blurTarget` prop has not been configured. The blur view will fallback to "none".
+   ```
+4. **The `BlurView` must be a SIBLING of `BlurTargetView`, not a child.** This was the last
+   missing piece here — nesting it inside the target produced no warning and no blur, because
+   blur cannot sample a tree it is itself part of.
 
 ```jsx
-// ✅ correct on SDK 57 / Android
-<BlurTargetView style={styles.card}>
-  <ContentToBlur />
-  <BlurView intensity={50} tint="light" blurMethod="dimezisBlurView" style={StyleSheet.absoluteFill} />
-</BlurTargetView>
+// ✅ correct on SDK 57 / Android — matches the official docs example
+const targetRef = useRef<View>(null);
+
+<View style={styles.wrap}>
+  <BlurTargetView ref={targetRef} style={StyleSheet.absoluteFill}>
+    <ContentToBlur />
+  </BlurTargetView>
+  <BlurView
+    blurTarget={targetRef}          // 3
+    blurMethod="dimezisBlurView"    // 1
+    intensity={100}
+    style={styles.panel}            // 4 — sibling, not nested
+  />
+</View>
 ```
+
+Only requirement 3 emits a warning. The other three fail in complete silence.
 
 **Version note — the API changed.** On **SDK 54** (`expo-blur@15`) the prop was
 `experimentalBlurMethod` and no `BlurTargetView` existed; that setup blurs fine there. On

@@ -21,7 +21,7 @@
  * what the skill is about.
  */
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   ScrollView,
   Text,
@@ -58,6 +58,8 @@ function Backdrop({ children }: { children?: React.ReactNode }) {
 
 export default function BlurScreen() {
   const [intensity, setIntensity] = useState(50);
+  // The blur view needs a REF to the target, not merely a wrapper element.
+  const targetRef = useRef<View>(null);
   const { width } = useWindowDimensions();
 
   return (
@@ -88,26 +90,30 @@ export default function BlurScreen() {
           </ExpoBlurView>
         </Backdrop>
 
-        <Text style={st.lbl}>C · BlurTargetView + blurMethod (the correct Android setup)</Text>
-        <BlurTargetView style={st.backdrop}>
-          <View style={st.stripes}>
-            {Array.from({ length: 12 }).map((_, i) => (
-              <View
-                key={i}
-                style={[st.stripe, { backgroundColor: i % 2 ? '#2f6fed' : '#ffd166' }]}
-              />
-            ))}
-          </View>
-          <Text style={st.backdropText}>SHARP TEXT BEHIND — 12345</Text>
+        <Text style={st.lbl}>C · BlurView as SIBLING of BlurTargetView (docs pattern)</Text>
+        <View style={st.cWrap}>
+          <BlurTargetView ref={targetRef} style={StyleSheet.absoluteFill}>
+            <View style={st.stripes}>
+              {Array.from({ length: 12 }).map((_, i) => (
+                <View
+                  key={i}
+                  style={[st.stripe, { backgroundColor: i % 2 ? '#2f6fed' : '#ffd166' }]}
+                />
+              ))}
+            </View>
+            <Text style={st.backdropText}>SHARP TEXT BEHIND — 12345</Text>
+          </BlurTargetView>
+          {/* Sibling, NOT a child — the docs example places it outside the target. */}
           <ExpoBlurView
             intensity={intensity}
             tint="light"
             blurMethod="dimezisBlurView"
+            blurTarget={targetRef}
             style={st.overlay}
           >
-            <Text style={st.overlayText}>with BlurTargetView · {intensity}</Text>
+            <Text style={st.overlayText}>sibling + ref · {intensity}</Text>
           </ExpoBlurView>
-        </BlurTargetView>
+        </View>
 
         <Expect text="MEASURED: on Android blur needs BOTH blurMethod AND a BlurTargetView wrapping the content." />
         <Expect text="A and B only tint. Only C should smear the stripes." />
@@ -241,6 +247,13 @@ const st = StyleSheet.create({
   },
   overlayText: { fontSize: 13, fontWeight: '700', color: C.text },
   lbl: { fontSize: 11, color: C.dim, marginTop: 6 },
+  cWrap: {
+    height: 130,
+    borderRadius: 10,
+    overflow: 'hidden',
+    justifyContent: 'center',
+    backgroundColor: '#111',
+  },
   clipParent: {
     height: 130,
     borderRadius: 24,
