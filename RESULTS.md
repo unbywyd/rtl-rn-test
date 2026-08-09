@@ -275,6 +275,52 @@ infinite restart loop. → R8b
 
 **Screenshots:** `he-t12-lang.png`, `he-t12-diagnostics.png`, `ar-t11-samedirection.png`
 
+### T1 — Baseline auto-mirroring ✅ (Arabic RTL, Galaxy S21 Ultra)
+
+The cleanest demonstration of the whole thesis. With **zero `isRTL` in the code**:
+
+| Property | Written as | Rendered in RTL |
+| --- | --- | --- |
+| `flexDirection` | `'row'` | 1·2·3 reads with **1 rightmost** ✅ |
+| `justifyContent` | `'flex-start'` | hugs the **right** edge ✅ |
+| `justifyContent` | `'flex-end'` | hugs the **left** edge ✅ |
+| `alignItems` | `flex-start` / `flex-end` | mirrored on the cross axis ✅ |
+
+**And the header reads `isRTL = false` throughout.** Yoga mirrored everything correctly while
+the JS flag claimed otherwise — so the screen with **no** direction logic is correct, while
+T2, which uses `isRTL` "properly", is broken.
+
+This is the empirical core of the skill: **RTL layout works on its own.** Touching it is not
+merely redundant, it is actively harmful, because the flag most code reaches for is wrong.
+
+Second half of the screen — every documented logical property mirrored correctly:
+
+| Property | Rendered in RTL |
+| --- | --- |
+| `marginStart: 40` | gap on the **right** ✅ |
+| `paddingStart: 40` | gap on the **right** ✅ |
+| `borderStartWidth: 6` | thick border on the **right** ✅ |
+| `start: 0` (absolute) | pinned **right** ✅ |
+| `end: 0` (absolute) | pinned **left** ✅ |
+
+Notably **absolute positioning with `start`/`end` works** — a known historical soft spot
+(RN #8137, and paper#3542 reported iOS-specific breakage). On RN 0.86.2 / Android it is
+correct. The iOS half of that remains open for the Mac session.
+
+**`left` / `right` auto-swap confirmed:** a box with `left: 0` rendered pinned to the
+**right** edge, so `doLeftAndRightSwapInRTL` is on by default. Physical `left`/`right` are
+therefore **not broken** in RTL — they mirror. Prefer `start`/`end` for a different reason:
+they state intent and do not depend on a runtime flag that any code can disable via
+`swapLeftAndRightInRTL(false)`.
+
+**Eight properties verified, all correct, with zero `isRTL` in the code:**
+`flexDirection` · `justifyContent` · `alignItems` · `marginStart` · `paddingStart` ·
+`borderStartWidth` · `start`/`end` · `left`/`right`
+
+Tested in **Arabic**, confirming the behaviour is not Hebrew-specific.
+
+**Screenshots:** `ar-current.png`, `ar-t1-base-2.png`, `ar-t1-base-3.png`
+
 ### T13 — `android:supportsRtl` ✅ (static)
 - **Observed:** `android:supportsRtl="true"` present in the generated
   `android/app/src/main/AndroidManifest.xml`.
