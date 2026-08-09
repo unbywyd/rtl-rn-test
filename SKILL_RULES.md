@@ -58,6 +58,32 @@ So `isRTL` fails in **both** roles at once:
 > // NOT: I18nManager.isRTL                              // startup snapshot, may be stale
 > ```
 
+**Third confirmation, in the one place `textAlign` is genuinely required.** In the Arabic
+build, an input written as the textbook-correct
+```jsx
+textAlign: I18nManager.isRTL ? 'right' : 'left'
+```
+rendered its text **left-aligned inside an RTL app** — `isRTL` was `false`, so `'left'` won.
+The "recommended fix" row and the "no textAlign" row looked identical.
+
+This is the sharpest form of the problem: `<Text>` does not need `textAlign` at all (R12),
+so `TextInput` is the **one** place the property matters — and it is exactly where reading
+`I18nManager.isRTL` breaks it.
+
+**Side-by-side proof, same screen, same property, only the source differs** (Arabic build,
+`screenshots/t5-direction-compare.png`):
+```
+direction from language = true    ← trustworthy
+I18nManager.isRTL       = false   ← stale
+```
+| Input | `textAlign` derived from | Result |
+| --- | --- | --- |
+| top | `I18nManager.isRTL` | text **left**-aligned in an RTL app ❌ |
+| bottom | app language | caret on the **right** ✅ |
+
+Two inputs, one line of difference. This is the clearest single demonstration in the whole
+harness and should be the illustration used in the skill.
+
 **Why this matters:** this is the strongest possible argument for the "don't touch RTL, it
 already works" position — and it goes further than expected. Layout mirrored correctly *while
 the flag said otherwise*, and every piece of code that trusted the flag was wrong.
@@ -341,6 +367,55 @@ the right answer. Two bugs cancelled out.
 > correct. Code that branches on `isRTL` for layout is wrong **even when the screenshot
 > looks fine** — verify by reading the code, not the render. The only safe layout code has
 > no direction branch in it at all.
+
+---
+
+## R13 · Always set `placeholderTextColor` — and `TextInput` placeholders follow layout direction
+
+**Status:** ✅ measured, Galaxy S21 Ultra (Samsung One UI), Arabic build
+
+**Two findings from the same screen:**
+
+**1. An unset `placeholderTextColor` can render invisibly.** With `backgroundColor` white and
+no explicit `placeholderTextColor`, placeholders were **not visible at all** on this device.
+That is not only cosmetic: an invisible placeholder hides where the text will actually sit,
+which **masks RTL alignment bugs** and makes an empty field's caret position look wrong.
+
+> Always set `placeholderTextColor` explicitly. The platform default is not reliable across
+> OEM skins, and an invisible placeholder conceals alignment problems.
+
+**2. Placeholders follow layout direction, with or without `textAlign`.** Both Arabic
+placeholders (`أدخل الاسم`) rendered **right-aligned** — including in the field with **no**
+`textAlign` at all. Consistent with R12.
+
+### ⚠️ R13b · The `isRTL` bug is INVISIBLE on same-script content
+
+The same screen showed the bug clearly in one place and not at all in another:
+
+| Placeholder | Script | Broken field | Correct field |
+| --- | --- | --- | --- |
+| "broken when the flag is stale" / "follows the real direction" | **Latin** | left ❌ | right ✅ |
+| `أدخل الاسم` | **Arabic** | right ✅ | right ✅ |
+
+Arabic text right-aligns from layout direction regardless of `textAlign`, so a wrong
+`textAlign` **changes nothing visible**. Latin text is neutral, obeys whatever `textAlign`
+it is given, and therefore exposes the bug immediately.
+
+**Rule for the agent:**
+> Direction bugs hide on content written in the app's own script. A Hebrew app tested with
+> Hebrew strings can look flawless while its `textAlign` logic is completely wrong — the bug
+> only surfaces on Latin text, phone numbers, emails, IDs and codes.
+>
+> When verifying RTL, **always include opposite-script content in the test data.** Testing
+> only with localized copy is how these bugs reach production.
+
+**Caret in an empty RTL field looks misplaced but is correct.** The caret sits at the
+position of the first character to come — i.e. at the right-hand edge of the placeholder text
+— which reads as "floating in the middle" of an empty field. Typing confirms the behaviour is
+right: text enters from the right and flows leftward.
+
+> Do not "fix" a centred-looking caret in an empty RTL input. Verify by typing first; if the
+> text enters from the correct edge, there is no bug.
 
 ---
 
