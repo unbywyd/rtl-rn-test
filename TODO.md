@@ -19,7 +19,7 @@ Status legend: `[ ]` not started · `[~]` in progress · `[x]` verified · `[!]`
 - [x] `npx expo prebuild --platform android`
 - [x] Build + install on Android emulator (Pixel 6 Pro, API 34)
 - [x] git init + first commit
-- [ ] Push to GitHub (**only on explicit user command**)
+- [x] Push to GitHub
 
 ---
 
@@ -34,24 +34,32 @@ Static checks already done at scaffold time:
 
 Runtime tests — see TEST_PLAN.md for the full procedure:
 
-- [ ] **T1** Baseline auto-mirroring (no `isRTL` anywhere)
-- [~] **T2** Double-flip demo (proves R0/R2) — layout mirrors correctly, but see ⭐ below
+- [x] **T1** Baseline auto-mirroring — 8 logical properties, zero `isRTL`, all correct
+- [x] **T2** Double-flip demo — masked by the isRTL bug; arrows did not flip either
 - [!] **T0 (unplanned)** ⭐ **`isRTL` reads `false` while Yoga mirrors the layout.**
       Native prefs show `forceRTL=true`; `I18nManager.js` caches `isRTL` at module load and
       never re-reads it. The two values disagree for the whole JS session. **Contradicts the
       guide's single-flag model.** See RESULTS.md.
-- [ ] **T3** `<Text>` default alignment — Android content-based?
-- [ ] **T4** First-strong heuristic (digit/latin/emoji-leading Hebrew)
-- [ ] **T5** `TextInput` alignment + numeric caret
-- [ ] **T6** Always-LTR content (phone/email) + LRM marks
-- [ ] **T7** Signed numbers / math bidi (RN #54713)
-- [ ] **T8** Logical props: `*Inline*` family, `borderInlineStartWidth` no-op, `*Block*` decoy
-- [ ] **T9** `start`/`end` precedence trap
-- [ ] **T10** `direction: 'ltr'` island — does it work on Android Fabric? (research open question #2)
-- [ ] **T11** Language switch, same direction (he→ar) — must NOT restart
-- [ ] **T12** Language switch, direction flip (he→en) — `reloadAppAsync` applies RTL? (**open question C1**)
-- [ ] **T13** `android:supportsRtl` gating (RN 0.75+ silent no-op)
-- [ ] **T14** Shadows: `shadowOffset` vs `elevation` vs `boxShadow`
+- [x] **T3** Text alignment — follows LAYOUT DIRECTION, not content. Blog claim disproven
+- [x] **T4** First-strong probes — no content heuristic exists on 0.86.2
+- [x] **T5** TextInput alignment — direction-source comparison proves the isRTL bug
+- [x] **T6** Phone `+` migrates to the end; LRM + textAlign together fix it
+- [x] **T7** #54713 did not reproduce; isolate the VALUE, not the line
+- [x] **T8** `borderInlineStartWidth` silently absent; `start` beats `left`
+- [x] **T9** Precedence trap confirmed in both directions
+- [x] **T10** `direction` prop WORKS on Android Fabric — settles research Q2
+- [x] **T11** he→ar instant, no reload
+- [x] **T12** `reloadAppAsync()` applies the flip WITHOUT expo-updates — C1 disproven
+- [x] **T13** `android:supportsRtl=true` present via Expo prebuild
+- [x] **T14** `shadowOffset` inert on Android; `boxShadow` renders
+
+---
+
+- [x] **T21/T22/T23** Safe area, system bars, keyboard — double-inset bug found and fixed
+- [x] **T24** Keyboard matrix — 10 cases, predictions exact
+- [x] **T25** Blur — needs 4 conditions; community/blur crashes
+
+**Android phase complete.** See `SUMMARY.md`.
 
 ---
 
@@ -85,12 +93,13 @@ Carried from the deep research. These are the reason the app exists.
 
 | # | Question | Blocks |
 | --- | --- | --- |
-| Q1 | Does `reloadAppAsync()` (from `expo`, no expo-updates) actually apply an RTL flip? | Guide correction C1 |
-| Q2 | Does `direction: 'ltr'` work on Android under Fabric? | Guide C13 |
-| Q3 | Is `shadowOffset` still iOS-only, or does `boxShadow` supersede it on 0.86? | Guide C11 |
-| Q4 | Is Android signed-number reordering real on 0.86? | Guide new-exception |
-| Q5 | Does iOS `<Text>` really default-align from the bundle, not content? | Guide R3 — **the highest-value one** |
-| Q6 | Does `writingDirection` do anything on iOS Fabric? | Guide C4 |
+| Q1 | Does `reloadAppAsync()` apply an RTL flip without expo-updates? | ✅ **YES** — C1 was wrong |
+| Q2 | Does `direction: 'ltr'` work on Android under Fabric? | ✅ **YES** — works both ways |
+| Q3 | Is `shadowOffset` iOS-only, or does `boxShadow` supersede it? | ✅ `shadowOffset` inert; `boxShadow` renders |
+| Q4 | Is Android signed-number reordering real on 0.86? | ✅ Not as reported — context is the trigger |
+| Q5 | Does iOS `<Text>` default-align from the bundle, not content? | ⏳ **iOS — still open, highest value** |
+| Q6 | Does `writingDirection` do anything on iOS Fabric? | ⏳ **iOS — still open** (does nothing on Android) |
+| Q7 | Does `I18nManager.isRTL` lie on iOS too? | ⏳ **iOS — the top question** (it does on Android) |
 
 ---
 
