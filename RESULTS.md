@@ -99,11 +99,72 @@ This was not on the test list. It is the most important result so far and it is
 4. **This is a strong argument for not keying anything off `isRTL` when avoidable** — the
    value is not a reliable live view of the layout direction.
 
-**Still to determine:** whether a true process-level cold start (rather than the dev-client
-relaunch used here) makes `isRTL` agree. The `am force-stop` + relaunch performed here did
-**not**. If a release build behaves differently, that difference itself belongs in the guide.
+**Resolved — it is NOT a dev-client artifact.** Tested exhaustively:
 
-- **Screenshots:** `screenshots/t2-android-doubleflip.png`, `screenshots/t2-android-coldstart.png`
+| Scenario | Layout | `isRTL` |
+| --- | --- | --- |
+| debug, first launch | mirrored ✅ | `false` ❌ |
+| debug, cold restart | mirrored ✅ | `false` ❌ |
+| **release**, fresh install, 1st launch | mirrored ✅ | `false` ❌ |
+| **release**, cold restart (flag persisted) | mirrored ✅ | `false` ❌ |
+
+**Root cause, traced through RN 0.86.2 Android source:**
+
+`I18nManagerModule.kt:26` computes the constant at **native module construction**:
+```kotlin
+"isRTL" to I18nUtil.instance.isRTL(context)
+```
+`I18nManager.js` then snapshots it once at module load and never re-reads it. So the value
+is fixed **before JS runs**, while `forceRTL()` writes to SharedPreferences that only the
+*next* native-module construction would read.
+
+A second, independent defect in the same file — `I18nUtil.kt:66`:
+```kotlin
+TextUtilsCompat.getLayoutDirectionFromLocale(Locale.getAvailableLocales()[0])
+```
+`isDevicePreferredLanguageRTL` reads **`Locale.getAvailableLocales()[0]`** — an arbitrary
+entry from the JVM's full locale table — **not** the device's preferred locale. So the
+"device language is RTL" branch is not reliably testing the device language at all.
+
+**Net:** with device locale `en-US`, `isRTL` is computed `false` at startup and stays `false`
+for the process lifetime, regardless of what the app later forces. Yoga, meanwhile, reads
+the persisted native flag on each layout pass and mirrors correctly.
+
+**Screenshots:** `t2-android-doubleflip.png`, `t2-android-coldstart.png`,
+`t2-android-release-firstlaunch.png`, `t2-android-release-secondlaunch.png`,
+`release-launch1.png`, `release-launch2.png`
+
+**Hebrew system locale tested too — same result.** The emulator's `persist.sys.locale` was
+set to `he-IL`, rebooted, and the release APK reinstalled fresh (no persisted flag):
+
+| System locale | App language | Layout | `isRTL` |
+| --- | --- | --- | --- |
+| `en-US` | he | mirrored ✅ | `false` ❌ |
+| **`he-IL`** | he | mirrored ✅ | **`false` ❌** |
+
+So even the `isRTLAllowed && isDevicePreferredLanguageRTL` branch does not make the
+constant `true` — consistent with the `Locale.getAvailableLocales()[0]` defect above,
+which never actually consults the device's preferred locale.
+
+**Screenshot:** `t2-android-hebrew-systemlocale.png`
+
+> ⚠️ **Remaining scope caveat:** all runs were on an **emulator** (Pixel 6 Pro, API 34).
+> A physical device should be checked before the guide states this as universal, though
+> the source-level explanation makes a device difference unlikely.
+
+### Consolidated conclusion for the guide
+
+On **Android / RN 0.86.2**, `I18nManager.isRTL` is a startup snapshot that can be `false`
+for the entire process lifetime while the app renders fully mirrored. Therefore:
+
+- **Never gate layout on `isRTL`.** Not merely "it is redundant" (the guide's current
+  framing) but **"it is unreliable"** — it can be wrong in the direction that silently
+  produces LTR layout inside an RTL screen.
+- **`isRTL` is also unreliable for the legitimate exceptions** (icons, `textAlign`,
+  index math). Those need a direction source that reflects the *actual* rendered
+  direction — the app's own language state is a better source than `I18nManager.isRTL`.
+- This is the strongest empirical support yet for the user's position that `isRTL` is
+  overused: measured here, it was not just unnecessary — it was **factually wrong**.
 
 ### T13 — `android:supportsRtl` ✅ (static)
 - **Observed:** `android:supportsRtl="true"` present in the generated
