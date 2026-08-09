@@ -6,10 +6,13 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
+    "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.rtltest.app"
     },
     "android": {
+      "package": "com.rtltest.app",
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -20,6 +23,18 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-localization",
+        {
+          "supportsRTL": true,
+          "forcesRTL": false
+        }
+      ]
+    ],
+    "extra": {
+      "note": "supportsRTL enables RTL; forcesRTL is left false because this app tests RUNTIME switching. Flip forcesRTL to true only for the Option-A (native force) comparison on Mac."
     }
   }
 }
