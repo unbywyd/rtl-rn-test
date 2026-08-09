@@ -103,7 +103,8 @@ export default function LanguageScreen({ bootstrapInfo }: { bootstrapInfo: strin
           />
         </Row>
         <Mono>platform={Platform.OS} · expo-updates NOT installed</Mono>
-        <Expect text="MISMATCH after a flip means the reload did not apply the direction." />
+        <Expect text="MISMATCH does NOT mean the layout is wrong — check the layout itself." />
+        <Expect text="Measured: layout mirrors correctly while this flag reads false (R1)." />
       </Section>
 
       <Section title="Switch language" hint="he→ar: no restart. he→en: direction flip + reload.">

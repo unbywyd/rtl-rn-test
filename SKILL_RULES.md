@@ -195,6 +195,45 @@ The reload used `reloadAppAsync()`, re-exported from the core **`expo`** package
 `expo-updates`. It can. The failing project was missing *any* reload mechanism, which is a
 different diagnosis with a different fix.
 
+**Confirmed by the app's own diagnostics** after an `en → he` switch:
+```
+en → he    directionChanged=true    strategy=expo-reloadAppAsync
+```
+
+### R8b · The restart-loop guard is MANDATORY, not defensive
+
+**Status:** ✅ measured — the guard is visibly the only thing preventing an infinite loop.
+
+Bootstrap diagnostics from a normal launch:
+```
+storedLanguage: "he"    resolvedLanguage: "he"
+isRTLBefore: false      shouldBeRTL: true
+flagFlipped: true       guardWasSet: true      needsRestart: false
+```
+
+Read that carefully. `isRTLBefore` is `false` and `shouldBeRTL` is `true`, so the standard
+condition "flag disagrees with language → flip it and restart" is **true on every single
+launch** — because `isRTL` never becomes `true` (R1). Only `guardWasSet: true` stopped this
+launch from restarting again.
+
+**Rule for the agent:**
+> The common pattern *"if the direction flag disagrees with the language, forceRTL and
+> reload"* is **self-perpetuating** on Android, because the flag never updates within the
+> process. Without a persisted one-shot guard the app restarts forever and never leaves the
+> splash screen.
+>
+> Always persist a guard, and prefer rendering once with a mismatched flag over looping:
+> ```js
+> if (I18nManager.isRTL !== shouldBeRTL) {
+>   I18nManager.forceRTL(shouldBeRTL);
+>   if (!(await getGuard())) { await setGuard(true); return { needsRestart: true }; }
+> } else {
+>   await setGuard(false);   // in sync → clear the stale guard
+> }
+> ```
+> Better still: do not drive this off `I18nManager.isRTL` at all (R1) — compare against a
+> direction you persisted yourself alongside the language.
+
 ---
 
 ## R9 · `adjustResize` does not survive edge-to-edge — the keyboard covers the input

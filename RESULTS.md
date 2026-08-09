@@ -247,6 +247,34 @@ characters that bind to the surrounding direction.
 
 **Screenshots:** `he-t3-text.png`, `he-t5-phone.png`, `he-t3-mixed.png`
 
+### T11 / T12 — CLOSED (Galaxy S21 Ultra, Android 15)
+
+**T12 — direction flip `en → he`:** ✅
+```
+en → he    directionChanged=true    strategy=expo-reloadAppAsync
+```
+One reload, direction applied, layout came back mirrored. **`expo-updates` is not installed
+in this project** — proving the earlier "expo-updates is mandatory" claim wrong. → R8
+
+**T11 — same-direction switch `he → ar`:** ✅
+```
+he → ar    directionChanged=false    strategy=not-reloaded
+```
+Text switched to Arabic instantly, layout stayed RTL, **no reload**. Confirms that only a
+direction *change* justifies a restart — reloading on every language switch would needlessly
+destroy screen state.
+
+**Bootstrap diagnostics — the restart-loop guard is load-bearing:** ✅
+```
+isRTLBefore: false   shouldBeRTL: true
+flagFlipped: true    guardWasSet: true    needsRestart: false
+```
+The standard condition "flag disagrees with language → flip and restart" is true on *every*
+launch, because `isRTL` never becomes `true` (R1). Only the persisted guard prevented an
+infinite restart loop. → R8b
+
+**Screenshots:** `he-t12-lang.png`, `he-t12-diagnostics.png`, `ar-t11-samedirection.png`
+
 ### T13 — `android:supportsRtl` ✅ (static)
 - **Observed:** `android:supportsRtl="true"` present in the generated
   `android/app/src/main/AndroidManifest.xml`.
