@@ -38,6 +38,8 @@ module.exports = [
       'rtl/no-physical-styles': 'error',
       'rtl/no-dead-logical-props': 'error',
       'rtl/no-direction-ternary': 'error',
+      // The harness is a test app: its literals ARE the specimens under test.
+      'rtl/no-hardcoded-text': 'off',
       'rtl/no-textalign-start': 'error',
       'rtl/require-bidi-isolate': 'warn',
     },
