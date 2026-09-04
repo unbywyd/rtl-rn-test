@@ -146,6 +146,29 @@ export default function DirectionScreen() {
           same numberOfLines, one outside any island and one inside an rtl
           island. Width/truncation is held constant so it cannot be the
           explanation either. */}
+      {/* T30h — mixed content, where first-strong disagrees with the bulk.
+
+          Every row so far is single-script, so "first-strong" and "the script
+          of the string" were the same thing and could not be told apart. A
+          real address, product name or username is not single-script: it is
+          Hebrew with a Latin brand in it, or Latin with a Hebrew suffix.
+
+          These rows put the two in conflict deliberately. The input's value
+          is the only quantity that responded to content at all (T30d), so it
+          is the one that can distinguish them. */}
+      <Section
+        title="T30h · mixed content — first strong char vs the bulk"
+        hint="Each string's FIRST strong character disagrees with most of its content."
+      >
+        <View style={[st.track, st.stack, { direction: 'rtl' } as any]}>
+          <TextInput style={[st.t, st.input]} defaultValue="Acme שלום עולם שלום עולם שלום" />
+          <TextInput style={[st.t, st.input]} defaultValue="שלום Acme Corporation Limited" />
+          <Text style={st.t}>Acme שלום עולם שלום עולם שלום</Text>
+          <Text style={st.t}>שלום Acme Corporation Limited</Text>
+        </View>
+        <Expect text="If the INPUT rows sit on opposite edges, the rule is genuinely first-strong and the bulk is irrelevant. If they agree, something other than the first character decides it. Text rows are the control: both should sit LEFT on iOS regardless." />
+      </Section>
+
       <Section
         title="T30g · bare Hebrew Text: island vs no island"
         hint="Same string, same width, same numberOfLines. Only the island differs."
