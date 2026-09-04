@@ -1373,10 +1373,39 @@ app's direction; an island means the island's. The script never matters. So on A
 bare-`<Text>` case is exactly what T30d predicts, and **there is no contradiction with T27 to
 resolve on this platform**.
 
-That localises the open question entirely to iOS: is a bare `<Text>` outside any island
-different there from one inside? If it is not, T27's row and T30d's row cannot both be
-current — and T30d/T30f were run on two levers and agreed to the pixel. If it is, iOS has an
-island-dependent rule that R30 currently states without its precondition. **Pending, iOS.**
+### Resolved on iOS — and BOTH measurements were right
+
+Three rows on a physical iPhone 16 Pro Max, varying only the island while holding the string,
+`width: 180` and `numberOfLines={1}` constant:
+
+| Row | Box | Ink |
+| --- | --- | --- |
+| A · no island anywhere | x=83..620 | 85..607 |
+| B · inside `direction: 'rtl'` | x=672..1211 | 676..1198 |
+| C · full width, no island | — | 83..401 → left |
+
+**Row A's box sits at x=83 — the far left of the page, with no island above it.** So the
+placement rule holds unchanged and R30 does **not** need "inside a direction island" as a
+precondition.
+
+**The discriminator is box versus text-within-box.** A `width: 180` `<Text>` whose string
+overflows has *two* placements:
+
+1. where the **box** sits in its parent — layout, decided by the island;
+2. which **end of the overflowing string** gets truncated — BiDi, decided by the script.
+
+With the box exactly filled, the second is not alignment at all. T27 saw the ellipsis at the
+left of a Hebrew string and recorded it as *the text hugging right* — the box had been at the
+left the whole time. Full-width rows cannot show this, because box and text coincide.
+
+**The trap is symmetric, and it caught both sessions in opposite directions:** a background
+tint reveals only the box, and measuring ink alone cannot separate alignment from truncation.
+One session read a truncation as an alignment; the other could not see a box it had not
+tinted.
+
+**Consequence:** T27's mechanism is genuinely script-driven, so it belongs with R14 (bidi),
+not R12 (alignment). The two rules never disagreed — they were measuring different quantities
+under the same words.
 
 ---
 
