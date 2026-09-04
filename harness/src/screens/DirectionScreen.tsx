@@ -116,6 +116,42 @@ export default function DirectionScreen() {
       </Section>
 
       {/*
+        T30d — the DEFAULT, with the script varied.
+
+        iOS and Android disagree on exactly one row: a <Text> with NO textAlign
+        inside an rtl island. Android puts it right (layout direction); iOS puts
+        it left. The hypothesis is that iOS resolves a missing textAlign as
+        NSTextAlignmentNatural — first-strong character — so a Latin string
+        reads LTR and lands left regardless of the island, while Android Fabric
+        resolves the default from layout direction and ignores the script.
+
+        That is testable: pair each Latin row with a Hebrew one. If the script
+        changes the answer, the resolution is content-based; if it does not, it
+        is direction-based. Every row here deliberately has NO textAlign.
+
+        Note the trap this closes. R13 says Hebrew content hides a wrong
+        textAlign — true. T30/T30b used Latin for exactly that reason. But
+        Latin has the mirror-image blind spot: it hides a content-based
+        DEFAULT. Neither script alone can measure this row.
+      */}
+      <Section
+        title="T30d · no textAlign at all — does the SCRIPT decide?"
+        hint="Every row here omits textAlign. Only the string and the island differ."
+      >
+        <View style={[st.track, st.stack, { direction: 'rtl' } as any]}>
+          <Text style={st.t}>rtl island / latin / no textAlign</Text>
+          <Text style={st.t}>אי אי אי / עברית / no textAlign</Text>
+          <TextInput style={[st.t, st.input]} defaultValue="rtl / input latin / none" />
+          <TextInput style={[st.t, st.input]} defaultValue="אי אי אי / קלט עברית / none" />
+        </View>
+        <View style={[st.track, st.stack, { direction: 'ltr' } as any]}>
+          <Text style={st.t}>ltr island / latin / no textAlign</Text>
+          <Text style={st.t}>אי אי אי / עברית / no textAlign</Text>
+        </View>
+        <Expect text="If the DEFAULT is content-based (first-strong), the Hebrew rows sit RIGHT and the Latin rows LEFT in BOTH islands — the island stops mattering. If it is direction-based, both scripts follow the island: right in rtl, left in ltr." />
+      </Section>
+
+      {/*
         T30b — the same question for the cases T30 leaves open.
 
         T30 covers a <Text> one level under the island. These are the places
