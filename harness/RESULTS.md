@@ -1431,6 +1431,66 @@ under the same words.
 
 ---
 
+### ⭐⭐⭐ T30h — an input follows the FIRST STRONG CHARACTER, not the bulk. Both platforms.
+
+Every row before this one was single-script, so "first-strong" and "the script of the string"
+were the same thing and could not be told apart. A real address, product name or username is
+not single-script. These strings put the two in conflict on purpose.
+
+Inside one `direction: 'rtl'` island, no `textAlign` anywhere:
+
+| Element | String | first strong | bulk | Android | iOS |
+| --- | --- | --- | --- | --- | --- |
+| `TextInput` | `Acme שלום עולם שלום עולם שלום` | Latin | **Hebrew** | 132..672 → **left** | 137..668 → **left** |
+| `TextInput` | `שלום Acme Corporation Limited` | Hebrew | **Latin** | 427..950 → **right** | 652..1180 → **right** |
+| `Text` | (Latin-first) | Latin | Hebrew | 436..976 → right | 110..641 → left |
+| `Text` | (Hebrew-first) | Hebrew | Latin | 451..975 → right | 110..638 → left |
+
+**The inputs sit on opposite edges on both platforms, and the majority script loses both
+times.** So "first-strong" is literally true — the first strong character decides it, not the
+script the string is mostly written in. Android and iOS agree completely on this row.
+
+The `<Text>` rows are the control, and they land on the *same* edge as each other despite
+opposite first characters — which is what proves the inputs' split came from the strings and
+not from something structural in the markup. They also show the known `<Text>` platform split
+again: Android follows the island, iOS is always physically left.
+
+**Why this row matters more than completeness.** The field's alignment is decided by a
+character **the user did not choose**. `Acme בע"מ` aligns left, `שלום Acme` aligns right —
+same form, same code, both platforms. No amount of care about the data fixes it, because the
+data is the input. Only an explicit `textAlign` does. This is the strongest form of the
+mandatory-on-input rule and it has no workaround.
+
+iOS rows measured on a physical iPhone 16 Pro Max, iOS 26.6.1; Android on a Galaxy S21 Ultra,
+Android 15.
+
+---
+
+### T29 C/D/E on Android — a nested `ScrollView` does NOT block inheritance
+
+Read off the T29 tab in passing while navigating to T30h, but the rows were built for exactly
+this question and the reading is unambiguous — every box is either `3·2·1` (mirrored) or
+`1·2·3` (not), with no middle state.
+
+| Row | Placement | Reads |
+| --- | --- | --- |
+| C | `direction` two plain Views up | `3·2·1` |
+| D | `direction` outside, a nested `ScrollView` in between | **`3·2·1`** |
+| E | `direction` on the inner `ScrollView`'s `contentContainerStyle` | `3·2·1` |
+
+**D is the row T29 called deciding:** "if this reads `1·2·3` while C reads `3·2·1`, a
+ScrollView blocks inheritance". It reads `3·2·1`, same as C. So on Android a nested
+`ScrollView` does **not** block `direction` inheritance, and the T28 failure shape is ruled
+out on the exact structure it was built to test.
+
+E agreeing as well answers the "where must it go" question the section exists for: **anywhere
+in the ancestry**, including across a scroller and on a `contentContainerStyle`.
+
+**Android only.** The iOS half is unmeasured — that device opened on T29 twice and the rows
+were never captured. G/H remain below the fold on both.
+
+---
+
 ### T8 / T9 / T20 — Logical properties
 
 - **Platform:** iOS 26.5.2 / iPhone 16 Pro Max · layout LTR
