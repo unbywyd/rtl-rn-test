@@ -49,6 +49,27 @@ re-read.
 iOS has a **different native implementation** (`RCTI18nUtil`, not `I18nUtil.kt`), so it may
 behave completely differently.
 
+> **ANSWERED — iPhone 16 Pro Max, iOS 26.6.1, physical device.** `isRTL` reads **`false`**
+> on iOS too, in the app's normal (state-driven) configuration. The flag is unreliable on
+> **both** platforms; R1 stands cross-platform and needs no platform split.
+>
+> **But `forcesRTL` is two different claims, and this file collapsed them.** Measured
+> separately:
+>
+> | Lever | Works on iOS? |
+> | --- | --- |
+> | **Build-time** native force — `expo-localization` plugin `forcesRTL: true` + prebuild + rebuild | **YES.** `isRTL` flips to `true`, the layout mirrors, tab bar included. Verified in `ios/testrtl/Info.plist` (`ExpoLocalization_forcesRTL <true/>`). |
+> | **Runtime** force — `I18nManager.forceRTL()` + reload | **No working configuration** (T2/T12). |
+>
+> Say which one is meant. "forceRTL does not work on iOS" is true only of the runtime lever.
+>
+> **This does not overturn R22's preference for the provider.** That rests on runtime
+> language switching without a reload, and on runtime force being unavailable — build-time
+> force gives back neither.
+>
+> Evidence: `screenshots/ios-04-forcertl.png` (header `isRTL=true`, mirrored tab bar).
+> Full measurements in `RESULTS.md` under T30d/T30e/T30f.
+
 **How to check:** the header on every screen prints `isRTL=…`. Switch the app to Hebrew
 (**T12 Lang** → HE) and read it.
 
@@ -56,6 +77,10 @@ behave completely differently.
 | --- | --- |
 | `isRTL=true` with mirrored layout | **Platform difference** — the bug is Android-only. Rule R1 must be rewritten as platform-specific. |
 | `isRTL=false` with mirrored layout | Confirms R1 cross-platform. The rule stands as written. |
+
+**Measured: the second row.** `isRTL=false`. R1 holds cross-platform — do not rewrite it as
+platform-specific. (Under a build-time `forcesRTL:true` build the flag *does* read `true`,
+but that is the native-force lever above, not the configuration this question is about.)
 
 Then open **T5 Input** — it renders the same `textAlign` twice, once from `I18nManager.isRTL`
 and once from the app language, labelled. If they differ on iOS, the flag lies there too.
