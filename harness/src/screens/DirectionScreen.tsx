@@ -158,8 +158,27 @@ export default function DirectionScreen() {
               LTR value belongs. The isolate fixes character order (R14); this
               row is about the BLOCK. */}
           <Text style={[st.t, { textAlign: 'right' }]}>{'⁦+972 54-123-4567⁩'}</Text>
+
+          {/* T30c — the other half of the TextInput claim.
+              The rows above only show that 'left' lands left on an input. That
+              is not enough to say "not mirrored": it is also what a BROKEN or
+              IGNORED property looks like. These two decide it. If 'right' lands
+              right and 'center' centres, the input is honouring the physical
+              value; if 'right' also landed left, the property is being dropped. */}
+          <TextInput
+            style={[st.t, st.input, { textAlign: 'right' }]}
+            defaultValue="input / value / align right"
+          />
+          <TextInput
+            style={[st.t, st.input, { textAlign: 'center' }]}
+            defaultValue="input / value / align center"
+          />
+          {/* And the control: no textAlign at all. Whatever an input defaults
+              to inside an rtl island is what a screen gets when the property is
+              simply forgotten — worth knowing, since that is the common case. */}
+          <TextInput style={[st.t, st.input]} defaultValue="input / value / NO textAlign" />
         </View>
-        <Expect text="Rows 1-3 should sit at the END (right) like T30's 'left' row. 'center' must stay centred. The phone row should sit at the START (left) and read +972 54-123-4567 left-to-right." />
+        <Expect text="Rows 1-3 should sit at the END (right) like T30's 'left' row. 'center' must stay centred. The phone row should sit at the START (left) and read +972 54-123-4567 left-to-right. T30c: if the input honours the physical value, 'right' sits RIGHT and 'center' centres; if 'right' also sat left the property is being ignored, not kept." />
       </Section>
     </ScrollView>
   );

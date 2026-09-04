@@ -1118,6 +1118,26 @@ and is mirrored by the island; `<TextInput>` resolves alignment in the platform'
 widget and keeps the physical value. Nesting does not change it — depth is irrelevant, the
 element type is what matters. `'center'` has no start/end sense and is untouched by either.
 
+### T30c — the control rows: is the input KEEPING the value, or IGNORING it?
+
+T30b only showed that `'left'` lands left on an input. That is not enough to conclude "not
+mirrored" — it is equally what a **dropped** property looks like. Three more rows, same rtl
+island, decide it:
+
+| `textAlign` | ink (inner box 115..962) | gap L / R | Result |
+| --- | --- | --- | --- |
+| `'right'` | 551..949 | 436 / 13 | **end (right)** |
+| `'center'` | 325..751 | 210 / 211 | **centred** |
+| *(absent)* | 129..573 | 14 / 389 | **start (left)** |
+
+Every value is honoured literally, so the input is **keeping** the physical value rather than
+dropping the property. That settles T30b.
+
+**One consequence T30b could not show: an absent `textAlign` on a `<TextInput>` defaults to
+the LEFT inside an RTL island.** On a Hebrew screen, forgetting the property puts the input
+on the wrong edge — the opposite of `<Text>`, where omitting it is harmless on Android (R12).
+On an input the property is mandatory, in both directions.
+
 **This is why the production bug looked so arbitrary.** On the Hebrew login screen, the same
 `textAlign` value from the same hook was fed to a `<Text>` label and a `<TextInput>`. The
 input looked right and the label looked wrong — one value, two behaviours, and the input's
