@@ -1215,8 +1215,8 @@ direction from state is LTR, because `forceRTL` never applied.
 
 Mechanism, from RN's source: `RCTAttributedTextUtils.mm:200-206` flips an explicit
 Left/Right by the island's `layoutDirection` and passes `Natural` through untouched to
-`NSTextAlignmentNatural`, which UIKit resolves against the app's interface direction rather
-than the paragraph.
+`NSTextAlignmentNatural` — which resolves to **Left regardless**. See T30f: the obvious
+reading, "it follows the app's interface direction", was tested directly and disproved.
 
 `<TextInput>` on iOS is content/first-strong — **identical to Android**. Inputs agree across
 platforms; only `<Text>` splits.
@@ -1251,14 +1251,14 @@ For a **missing** `textAlign` inside a `direction` island:
 
 | Element | Android | iOS |
 | --- | --- | --- |
-| `<Text>` | island direction (script ignored) | **app UI direction** (island *and* script ignored) |
-| `<TextInput>` placeholder | content, first-strong | **app UI direction** |
+| `<Text>` | island direction (script ignored) | **always physically LEFT** |
+| `<TextInput>` placeholder | content, first-strong | **always physically LEFT** |
 | `<TextInput>` value | content, first-strong | content, first-strong — the only row that agrees |
 
 Each platform has a single coherent rule, and they are different rules:
 
-- **iOS:** everything takes the app's UI direction *except* an input's typed value, which is
-  first-strong.
+- **iOS:** everything is physically LEFT *except* an input's typed value, which is
+  first-strong. Nothing else moves it — see T30f.
 - **Android:** everything in an input follows the content; a `<Text>` follows the island.
 
 For an **explicit** `textAlign`: no split anywhere. `<Text>` is mirrored by the island on both
@@ -1272,12 +1272,57 @@ correctly on Android. A Hebrew-only review on an Android device cannot see it.
 > - `<Text>` → the logical value (`'left'` = start edge; the island mirrors it, both platforms).
 > - `<TextInput>` → physical on both platforms, so derive it from the language.
 > - Never omit it on either: the defaults disagree three ways — Android `Text` follows the
->   island, iOS `Text` follows the app's UI direction, and inputs on both follow whatever the
->   user typed first.
+>   island, iOS `Text` is always physically left, and an input's typed value follows whatever
+>   the user typed first on both.
 
 **Not yet measured:** Hebrew *placeholder* with no `textAlign` (an empty field); the iOS
 app-level `<Text>` default with the app and system actually localized to Hebrew, where
 `NSTextAlignmentNatural` might resolve RTL; T29 G/H on iOS.
+
+---
+
+### ⭐⭐⭐⭐ T30f — the "app UI direction" explanation, tested and DISPROVED
+
+The reading of T30d/T30e was that iOS resolves these defaults against the app's interface
+direction. It was an *inference* from cells that all read LTR — `isRTL=false`, `forceRTL`
+never applied — and it was flagged as such at the time. This is the test it did not survive.
+
+**Setup:** `expo-localization` `forcesRTL: false → true` in `app.json`, `npx expo prebuild
+--platform ios`, rebuilt to the device. Confirmed in the native project
+(`ios/testrtl/Info.plist` carries `ExpoLocalization_forcesRTL <true/>`) and at runtime: the
+header reads `ios · he · isRTL=true · dir=native`, the tab bar runs right-to-left, T10's
+reference row reads 1 rightmost, and the `ltr` island reads 1·2·3 against it. The app is
+genuinely, natively RTL — not inferred.
+
+| Row | isRTL=false | isRTL=true |
+| --- | --- | --- |
+| rtl island, `Text`, Latin | 111..586 | 111..586 |
+| rtl island, `Text`, Hebrew | 111..584 | 111..584 |
+| rtl island, input, Latin | 138..482 | 138..482 |
+| rtl island, input, Hebrew | 750..1180 | 750..1181 |
+| rtl island, placeholder, Hebrew | 138..660 | 138..660 |
+| rtl island, placeholder, Latin | 138..529 | 138..529 |
+| ltr island, `Text`, Latin | 111..586 | 111..586 |
+| ltr island, `Text`, Hebrew | 111..584 | 111..584 |
+
+**Identical, to the pixel** (the single unit on the Hebrew input is antialiasing). Flipping
+the app to genuine native RTL changed nothing about any default.
+
+So the rule is simpler, and worse:
+
+> On iOS, a `<Text>` or a placeholder with no `textAlign` is **always physically left**. Not
+> the island, not the script, not the app's own direction. The only thing that responds to
+> anything is an input's typed value, which is first-strong.
+
+**Why this matters more than a wording fix.** The disproved version invited a false
+conclusion: *"iOS follows the app's UI direction, so a properly RTL-localized app is fine and
+the property is only needed for state-driven apps."* There is no such escape. Omitting
+`textAlign` is unsafe in **every** iOS configuration we can produce.
+
+**Settled in passing — `forcesRTL` DOES work on iOS at build time.** Via the
+`expo-localization` plugin, `isRTL` flipped to `true` and the layout mirrored. What has no
+working path is the **runtime** flip (`I18nManager.forceRTL` + reload, T2/T12). Those are two
+different claims and the notes should not collapse them.
 
 ---
 
