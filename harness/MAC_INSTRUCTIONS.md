@@ -37,6 +37,30 @@ The app opens on the **T2 Flip** tab. The tab bar scrolls horizontally; all 12 t
 
 ---
 
+## Reading a section you cannot scroll to
+
+A physical device has no tap or gesture API from a coding session, and after `expo run:` the
+app opens on whichever tab is hardcoded — not the one you are measuring. Both sessions lost
+time to this before working out the order. **Do these in this order.**
+
+**1. Change the initial tab first.** `App.tsx`, the `useState<TabKey>(…)` call — set it to the
+tab you are measuring. It is one line and it deletes the problem outright. Both of us treated
+it as a fallback; it is the cheapest step and it should be the first one.
+
+**2. Move the section you want to the top of its screen.** Cut the block — its leading comment
+through its closing `</Section>` — and splice it in directly after the `<ScrollView …>` opening
+tag. `tsc` catches a bad cut immediately.
+
+**Do NOT wrap the sections above in `{false && <> … </>}`.** It looks equivalent and has a bad
+failure mode: start the wrap at the `<ScrollView>` tag rather than at the first `<Section>`,
+and every child — including the closing `</>}` — ends up inside the falsy expression. The
+ScrollView then renders with no children at all, which is a **black screen with no error**,
+because it is valid JSX that legitimately renders nothing. Measured on Android; iOS would do
+the same. The section-move has no equivalent failure: it cannot swallow siblings, and a
+mistake fails at the typechecker instead of on the device.
+
+Revert both edits before committing. They are scrolling aids, not changes.
+
 ## ⭐ Priority 1 — Does `I18nManager.isRTL` lie on iOS too?
 
 **This is the single most important question of the entire iOS session.**

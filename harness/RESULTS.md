@@ -1452,8 +1452,14 @@ script the string is mostly written in. Android and iOS agree completely on this
 
 The `<Text>` rows are the control, and they land on the *same* edge as each other despite
 opposite first characters — which is what proves the inputs' split came from the strings and
-not from something structural in the markup. They also show the known `<Text>` platform split
-again: Android follows the island, iOS is always physically left.
+not from something structural in the markup.
+
+**They also close the mixed-content case for `<Text>`, which no earlier row covered.** Every
+previous test of the `<Text>` split used single-script strings; these are mixed, and the split
+holds unchanged: Android's both sit **right** (the island's direction, first character
+irrelevant), iOS's both sit **left** (always physical). So neither element's rule bends on
+mixed content — the input still follows its first strong character, the `<Text>` still ignores
+the string entirely.
 
 **Why this row matters more than completeness.** The field's alignment is decided by a
 character **the user did not choose**. `Acme בע"מ` aligns left, `שלום Acme` aligns right —
