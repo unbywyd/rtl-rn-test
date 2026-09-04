@@ -1221,6 +1221,30 @@ than the paragraph.
 `<TextInput>` on iOS is content/first-strong — **identical to Android**. Inputs agree across
 platforms; only `<Text>` splits.
 
+### T30e — the PLACEHOLDER, and a third split
+
+An empty field is the state a form is in before anyone touches it, so it is the state a user
+judges the screen by. A placeholder is not the field's value, so it need not resolve the same
+way — and it does not.
+
+| Platform | Hebrew placeholder | Latin placeholder |
+| --- | --- | --- |
+| Android | 407..950 → **right** | 129..520 → left |
+| iOS | 138..660 → **left** | 138..529 → left |
+
+Android resolves a placeholder first-strong, like the value. **iOS does not** — both scripts
+sit left, the same `NSTextAlignmentNatural` path as `<Text>`, because the placeholder never
+becomes the field's attributed value.
+
+The user-visible difference, from identical code:
+
+- **Android** — an empty Hebrew form shows its placeholders right. The user types Hebrew and
+  they stay right. Consistent, and invisible in review.
+- **iOS** — an empty Hebrew form shows every placeholder **left**, so the screen looks broken
+  at rest; then each field **snaps right** as it is filled in.
+
+And the device most likely to be doing the Hebrew review is the Android one.
+
 ### The cross-platform matrix
 
 For a **missing** `textAlign` inside a `direction` island:
@@ -1228,7 +1252,14 @@ For a **missing** `textAlign` inside a `direction` island:
 | Element | Android | iOS |
 | --- | --- | --- |
 | `<Text>` | island direction (script ignored) | **app UI direction** (island *and* script ignored) |
-| `<TextInput>` | content, first-strong | content, first-strong — same |
+| `<TextInput>` placeholder | content, first-strong | **app UI direction** |
+| `<TextInput>` value | content, first-strong | content, first-strong — the only row that agrees |
+
+Each platform has a single coherent rule, and they are different rules:
+
+- **iOS:** everything takes the app's UI direction *except* an input's typed value, which is
+  first-strong.
+- **Android:** everything in an input follows the content; a `<Text>` follows the island.
 
 For an **explicit** `textAlign`: no split anywhere. `<Text>` is mirrored by the island on both
 platforms; `<TextInput>` is physical on both.

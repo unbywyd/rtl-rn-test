@@ -143,12 +143,27 @@ export default function DirectionScreen() {
           <Text style={st.t}>אי אי אי / עברית / no textAlign</Text>
           <TextInput style={[st.t, st.input]} defaultValue="rtl / input latin / none" />
           <TextInput style={[st.t, st.input]} defaultValue="אי אי אי / קלט עברית / none" />
+
+          {/* T30e — the EMPTY field. A placeholder is not the field's value, so
+              it may not go through the same resolution the value does. This is
+              the state a form is in before anyone touches it, which makes it
+              the state a user judges the screen by. */}
+          <TextInput
+            style={[st.t, st.input]}
+            placeholder="אי אי אי / מציין מקום עברית / none"
+            placeholderTextColor={C.dim}
+          />
+          <TextInput
+            style={[st.t, st.input]}
+            placeholder="latin placeholder / none"
+            placeholderTextColor={C.dim}
+          />
         </View>
         <View style={[st.track, st.stack, { direction: 'ltr' } as any]}>
           <Text style={st.t}>ltr island / latin / no textAlign</Text>
           <Text style={st.t}>אי אי אי / עברית / no textAlign</Text>
         </View>
-        <Expect text="If the DEFAULT is content-based (first-strong), the Hebrew rows sit RIGHT and the Latin rows LEFT in BOTH islands — the island stops mattering. If it is direction-based, both scripts follow the island: right in rtl, left in ltr." />
+        <Expect text="If the DEFAULT is content-based (first-strong), the Hebrew rows sit RIGHT and the Latin rows LEFT in BOTH islands — the island stops mattering. If it is direction-based, both scripts follow the island: right in rtl, left in ltr. T30e: the two PLACEHOLDER rows say whether an empty field resolves like its own value (first-strong) or like everything else." />
       </Section>
 
       {/*
