@@ -16,7 +16,7 @@
  */
 
 import React from 'react';
-import { ScrollView, Text, View, StyleSheet, I18nManager, Platform } from 'react-native';
+import { ScrollView, Text, TextInput, View, StyleSheet, I18nManager, Platform } from 'react-native';
 import { Section, Box, Expect, Mono, C } from '../ui/kit';
 
 export default function DirectionScreen() {
@@ -114,6 +114,53 @@ export default function DirectionScreen() {
         </View>
         <Expect text="If textAlign OVERRIDES direction, 'left' sits left in both islands. If direction MIRRORS it, 'left' sits right inside the rtl island." />
       </Section>
+
+      {/*
+        T30b — the same question for the cases T30 leaves open.
+
+        T30 covers a <Text> one level under the island. These are the places
+        the answer could plausibly differ, and each one is a real screen
+        pattern rather than a synthetic case.
+      */}
+      <Section
+        title="T30b · TextInput, nesting, and 'center' inside an rtl island"
+        hint="Same island, harder cases. Every row should follow the same rule as T30."
+      >
+        <View style={[st.track, st.stack, { direction: 'rtl' } as any]}>
+          {/* A TextInput resolves alignment in native text machinery, not in
+              the same path as <Text> — worth its own row. Placeholder AND
+              value: R21 measured placeholders following layout direction, but
+              not inside a direction island. */}
+          <TextInput
+            style={[st.t, st.input, { textAlign: 'left' }]}
+            placeholder="input / placeholder / align left"
+            placeholderTextColor={C.dim}
+          />
+          <TextInput
+            style={[st.t, st.input, { textAlign: 'left' }]}
+            defaultValue="input / value / align left"
+          />
+
+          {/* Depth: does the mirroring survive intermediate Views that carry
+              no direction of their own? A real screen is never one level. */}
+          <View>
+            <View>
+              <Text style={[st.t, { textAlign: 'left' }]}>nested 2 deep / align left</Text>
+            </View>
+          </View>
+
+          {/* 'center' has no start/end sense, so it must be untouched — if it
+              shifts, the mirroring is not a simple start/end swap. */}
+          <Text style={[st.t, { textAlign: 'center' }]}>align center (must not move)</Text>
+
+          {/* Always-LTR data: the case that legitimately wants the physical
+              value. Inside rtl, 'right' is the START edge, which is where an
+              LTR value belongs. The isolate fixes character order (R14); this
+              row is about the BLOCK. */}
+          <Text style={[st.t, { textAlign: 'right' }]}>{'⁦+972 54-123-4567⁩'}</Text>
+        </View>
+        <Expect text="Rows 1-3 should sit at the END (right) like T30's 'left' row. 'center' must stay centred. The phone row should sit at the START (left) and read +972 54-123-4567 left-to-right." />
+      </Section>
     </ScrollView>
   );
 }
@@ -122,6 +169,7 @@ const st = StyleSheet.create({
   page: { padding: 14, paddingBottom: 48, gap: 6 },
   h1: { fontSize: 20, fontWeight: '800', color: C.text },
   stack: { flexDirection: 'column', alignItems: 'stretch' },
+  input: { borderWidth: 1, borderColor: C.dim, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 6 },
   track: {
     flexDirection: 'row',
     gap: 8,

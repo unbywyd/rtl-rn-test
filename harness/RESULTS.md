@@ -1099,6 +1099,49 @@ only when the label was read against the field it belonged to.
 
 ---
 
+### ⭐⭐ T30b — `Text` mirrors, `TextInput` does NOT. Same island, same property.
+
+- **Platform:** Galaxy S21 Ultra, Android 15, RN 0.86.2 / Fabric, app language `he`
+- **Screen:** `src/screens/DirectionScreen.tsx`, section T30b
+- All rows carry `textAlign: 'left'` inside the same `direction: 'rtl'` island.
+
+| Row | Element | ink | Sits against |
+| --- | --- | --- | --- |
+| placeholder | `TextInput` | 129..613 of 115..965 | **START (left)** — not mirrored |
+| value | `TextInput` | 129..505 of 115..965 | **START (left)** — not mirrored |
+| nested 2 deep | `Text` | 569..973 of 64..1010 | END (right) — mirrored |
+| `textAlign: 'center'` | `Text` | 306..777 (242 / 233) | centred — untouched |
+| phone, `textAlign: 'right'` | `Text` | 103..397 | START (left) — mirrored |
+
+**The two elements resolve the property in opposite directions.** `<Text>` goes through Yoga
+and is mirrored by the island; `<TextInput>` resolves alignment in the platform's own text
+widget and keeps the physical value. Nesting does not change it — depth is irrelevant, the
+element type is what matters. `'center'` has no start/end sense and is untouched by either.
+
+**This is why the production bug looked so arbitrary.** On the Hebrew login screen, the same
+`textAlign` value from the same hook was fed to a `<Text>` label and a `<TextInput>`. The
+input looked right and the label looked wrong — one value, two behaviours, and the input's
+correctness actively hid the rule.
+
+**Consequence — the guide needs one rule per element, not one rule:**
+
+> Under a `direction` provider:
+>
+> - `<Text>` hugging the reading edge → `textAlign: 'left'` in **both** directions. Yoga
+>   mirrors it; 'left' is the start.
+> - `<TextInput>` hugging the reading edge → `textAlign` derived from direction
+>   (`isRTL ? 'right' : 'left'`), because it is **not** mirrored. This is the one place the
+>   old §3 snippet was right — and it is written on a `TextInput`, which is probably why the
+>   error survived review for so long.
+> - Always-LTR data in a `<Text>` → physical `'right'` inside RTL (mirrors to the start
+>   edge), plus a BiDi isolate for character order (R14).
+> - `'center'` → unaffected either way.
+
+**Still open:** iOS. Both halves of this need re-measuring there — `TextInput` especially,
+since iOS resolves text alignment differently again (see R13's caveat and T17's iOS result).
+
+---
+
 ### T8 / T9 / T20 — Logical properties
 
 - **Platform:** iOS 26.5.2 / iPhone 16 Pro Max · layout LTR
