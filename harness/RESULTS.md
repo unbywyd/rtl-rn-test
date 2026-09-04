@@ -1398,6 +1398,28 @@ With the box exactly filled, the second is not alignment at all. T27 saw the ell
 left of a Hebrew string and recorded it as *the text hugging right* — the box had been at the
 left the whole time. Full-width rows cannot show this, because box and text coincide.
 
+**Confirmed against T27's own screenshot — no re-run was needed.**
+`screenshots/t27-ellipsis-ios.png` carries the background tint on every narrow row, so the
+box was measurable in the original evidence all along. Measured off it directly (tint =
+blue−red > 12):
+
+| T27 row | Box | Width |
+| --- | --- | --- |
+| Hebrew, narrow | x=81..620 | 539 |
+| English, narrow | x=81..620 | 539 |
+| Mixed script, narrow | x=81..620 | 539 |
+| Hebrew, 2-line narrow | x=81..620 | 539 |
+
+**Identical to the pixel across all four, both scripts.** That is the proof rather than an
+inference from T30g: the script moved the *ellipsis*, never the box. T27's "Text hugs" column
+was reading truncation, and its Box column is measured — not "not measured".
+
+**The trap, stated for the next reader.** A background tint reveals only the box. Measuring
+ink alone cannot separate alignment from truncation, and the two disagree exactly when a
+constrained `<Text>` is filled by an overflowing string. Record the **width** alongside every
+alignment measurement; a full-width row and a `width: 180` row are not measuring the same
+quantity.
+
 **The trap is symmetric, and it caught both sessions in opposite directions:** a background
 tint reveals only the box, and measuring ink alone cannot separate alignment from truncation.
 One session read a truncation as an alignment; the other could not see a box it had not
