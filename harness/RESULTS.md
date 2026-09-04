@@ -1162,6 +1162,94 @@ since iOS resolves text alignment differently again (see R13's caveat and T17's 
 
 ---
 
+### ⭐⭐⭐ T30d — the DEFAULT: `<Text>` follows the island, `<TextInput>` follows the SCRIPT
+
+- **Platform:** Galaxy S21 Ultra, Android 15, RN 0.86.2 / Fabric, app language `he`
+- Every row omits `textAlign`. Only the string and the island vary.
+
+| Island | Element | String | ink | Sits against |
+| --- | --- | --- | --- | --- |
+| `rtl` | `Text` | Latin | 498..976 | right |
+| `rtl` | `Text` | Hebrew | 495..975 | right |
+| `rtl` | `TextInput` | Latin | 129..475 | **left** |
+| `rtl` | `TextInput` | Hebrew | 510..949 | **right** |
+| `ltr` | `Text` | Latin | 104..581 | left |
+| `ltr` | `Text` | Hebrew | 104..583 | **left** |
+
+**The two elements resolve an absent `textAlign` by different mechanisms.**
+
+- `<Text>` → **layout direction**. The script is irrelevant: Hebrew and Latin agree in both
+  islands. This is R12's Android finding, and it survives inside a `direction` island.
+- `<TextInput>` → **content, first-strong**. Latin left and Hebrew right *in the same rtl
+  island*. The island did not decide it; the string did.
+
+**Why neither script alone could find this.** R13 says Hebrew content hides a wrong
+`textAlign` — true, and why T30/T30b/T30c are Latin. But Latin has the mirror-image blind
+spot: it hides a *content-based default*. Every earlier test in this harness picked one
+script and so could not see the row where they disagree.
+
+**Practical consequence, and it is sharper than "set the property".** An input with no
+`textAlign` in a Hebrew form aligns **per value**: the name field right, the email field
+left, and a field flips as the user types the first strong character. Two fields in one form
+disagree with each other. `textAlign` on a `<TextInput>` is not a polish item — it is what
+stops the form moving under the user.
+
+### T30d on iOS — measured, and the answer is a third mechanism
+
+iPhone 16 Pro Max, iOS 26.6.1, physical device, same markup (58df3af). Card 83..1236,
+input inner 112..1207.
+
+| Island | Element | String | ink | Sits against |
+| --- | --- | --- | --- | --- |
+| `rtl` | `Text` | Latin | 111..586 | left |
+| `rtl` | `Text` | Hebrew | 111..584 | **left** |
+| `rtl` | `TextInput` | Latin | 138..482 | left |
+| `rtl` | `TextInput` | Hebrew | 750..1180 | **right** |
+| `ltr` | `Text` | Latin | 111..586 | left |
+| `ltr` | `Text` | Hebrew | 111..584 | **left** |
+
+**All four `<Text>` cells land LEFT.** The island does not reach the default and neither does
+the script — so iOS `<Text>` is neither direction-based (Android's behaviour) nor first-strong
+(the hypothesis). It follows the **app's own UI direction**, which on a device driving
+direction from state is LTR, because `forceRTL` never applied.
+
+Mechanism, from RN's source: `RCTAttributedTextUtils.mm:200-206` flips an explicit
+Left/Right by the island's `layoutDirection` and passes `Natural` through untouched to
+`NSTextAlignmentNatural`, which UIKit resolves against the app's interface direction rather
+than the paragraph.
+
+`<TextInput>` on iOS is content/first-strong — **identical to Android**. Inputs agree across
+platforms; only `<Text>` splits.
+
+### The cross-platform matrix
+
+For a **missing** `textAlign` inside a `direction` island:
+
+| Element | Android | iOS |
+| --- | --- | --- |
+| `<Text>` | island direction (script ignored) | **app UI direction** (island *and* script ignored) |
+| `<TextInput>` | content, first-strong | content, first-strong — same |
+
+For an **explicit** `textAlign`: no split anywhere. `<Text>` is mirrored by the island on both
+platforms; `<TextInput>` is physical on both.
+
+**The nastiest consequence, and it is on `<Text>`, not the input.** On iOS a Hebrew label with
+no `textAlign` inside an rtl island sits on the LEFT edge, while identical code renders
+correctly on Android. A Hebrew-only review on an Android device cannot see it.
+
+> **Rule: inside a `direction` island, always set `textAlign`, on both elements.**
+> - `<Text>` → the logical value (`'left'` = start edge; the island mirrors it, both platforms).
+> - `<TextInput>` → physical on both platforms, so derive it from the language.
+> - Never omit it on either: the defaults disagree three ways — Android `Text` follows the
+>   island, iOS `Text` follows the app's UI direction, and inputs on both follow whatever the
+>   user typed first.
+
+**Not yet measured:** Hebrew *placeholder* with no `textAlign` (an empty field); the iOS
+app-level `<Text>` default with the app and system actually localized to Hebrew, where
+`NSTextAlignmentNatural` might resolve RTL; T29 G/H on iOS.
+
+---
+
 ### T8 / T9 / T20 — Logical properties
 
 - **Platform:** iOS 26.5.2 / iPhone 16 Pro Max · layout LTR
