@@ -1352,6 +1352,34 @@ different claims and the notes should not collapse them.
 
 ---
 
+### T30g — no island at all: Android says the island is not the discriminator
+
+T27 §6b reports a bare Hebrew `<Text>` with no `textAlign` hugging the **right** on iOS, in
+the plain screen. T30d measured the same shape landing **left** — but inside a `direction`
+island. The island's presence is the only structural difference between the two setups, so
+this pair puts a bare `<Text>` directly under the island rows, same styles, nothing setting
+`direction` above it.
+
+Android (app language `he`, `dir=rtl (state)`):
+
+| Rows | Latin | Hebrew |
+| --- | --- | --- |
+| no island | 506..1002 → **right** | 522..1000 → **right** |
+| `rtl` island | right | right |
+| `ltr` island | left | left |
+
+**One mechanism throughout: layout direction, wherever it comes from.** No island means the
+app's direction; an island means the island's. The script never matters. So on Android the
+bare-`<Text>` case is exactly what T30d predicts, and **there is no contradiction with T27 to
+resolve on this platform**.
+
+That localises the open question entirely to iOS: is a bare `<Text>` outside any island
+different there from one inside? If it is not, T27's row and T30d's row cannot both be
+current — and T30d/T30f were run on two levers and agreed to the pixel. If it is, iOS has an
+island-dependent rule that R30 currently states without its precondition. **Pending, iOS.**
+
+---
+
 ### T8 / T9 / T20 — Logical properties
 
 - **Platform:** iOS 26.5.2 / iPhone 16 Pro Max · layout LTR

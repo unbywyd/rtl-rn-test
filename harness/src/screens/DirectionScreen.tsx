@@ -194,7 +194,19 @@ export default function DirectionScreen() {
           <Text style={st.t}>ltr island / latin / no textAlign</Text>
           <Text style={st.t}>אי אי אי / עברית / no textAlign</Text>
         </View>
-        <Expect text="If the DEFAULT is content-based (first-strong), the Hebrew rows sit RIGHT and the Latin rows LEFT in BOTH islands — the island stops mattering. If it is direction-based, both scripts follow the island: right in rtl, left in ltr. T30e: the two PLACEHOLDER rows say whether an empty field resolves like its own value (first-strong) or like everything else." />
+
+        {/* T30g — NO island at all.
+            T27 §6b measured a bare Hebrew <Text> with no textAlign hugging the
+            RIGHT on iOS, in the plain screen. T30d measured the same thing
+            landing LEFT — but inside a direction island. The island's presence
+            is the only difference between the two setups, so these rows put a
+            bare <Text> next to the island ones and let the pair be read in a
+            single screenshot. Same styles, no `direction` anywhere above them. */}
+        <View style={st.stack}>
+          <Text style={st.t}>NO island / latin / no textAlign</Text>
+          <Text style={st.t}>אי אי אי / עברית / no textAlign</Text>
+        </View>
+        <Expect text="If the DEFAULT is content-based (first-strong), the Hebrew rows sit RIGHT and the Latin rows LEFT in BOTH islands — the island stops mattering. If it is direction-based, both scripts follow the island: right in rtl, left in ltr. T30e: the two PLACEHOLDER rows say whether an empty field resolves like its own value (first-strong) or like everything else. T30g: the last pair has NO island at all — if the Hebrew row hugs right there and left in the islands above, the island's presence is what changes the default." />
       </Section>
 
       {/*
