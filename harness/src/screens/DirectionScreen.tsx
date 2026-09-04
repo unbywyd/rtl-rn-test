@@ -134,6 +134,37 @@ export default function DirectionScreen() {
         Latin has the mirror-image blind spot: it hides a content-based
         DEFAULT. Neither script alone can measure this row.
       */}
+      {/* T30g — is the ISLAND itself the discriminator?
+
+          T30d measured bare Hebrew <Text> inside islands: always physically
+          left on iOS. But T27's truncation rows measured a bare Hebrew <Text>
+          with NO island anywhere in its ancestry, and it hugged RIGHT. Both
+          cannot be the universal rule.
+
+          The only structural difference is the island's presence, so these
+          rows vary exactly that and nothing else: same string, same width,
+          same numberOfLines, one outside any island and one inside an rtl
+          island. Width/truncation is held constant so it cannot be the
+          explanation either. */}
+      <Section
+        title="T30g · bare Hebrew Text: island vs no island"
+        hint="Same string, same width, same numberOfLines. Only the island differs."
+      >
+        <Text style={st.t}>A · NO island, plain screen, no textAlign:</Text>
+        <Text numberOfLines={1} style={[st.t, st.narrowBox]}>
+          {'שלום עולם שלום עולם שלום עולם שלום עולם'}
+        </Text>
+        <Text style={st.t}>B · same, but inside direction:'rtl':</Text>
+        <View style={[st.track, st.stack, { direction: 'rtl' } as any]}>
+          <Text numberOfLines={1} style={[st.t, st.narrowBox]}>
+            {'שלום עולם שלום עולם שלום עולם שלום עולם'}
+          </Text>
+        </View>
+        <Text style={st.t}>C · full width, NO island (T30d's shape, no truncation):</Text>
+        <Text style={st.t}>{'שלום עולם ללא יישור'}</Text>
+        <Expect text="If A hugs right and B hugs left, the ISLAND is the discriminator and R30 needs 'inside a direction island' as a precondition. If both hug left, T27's table is stale." />
+      </Section>
+
       <Section
         title="T30d · no textAlign at all — does the SCRIPT decide?"
         hint="Every row here omits textAlign. Only the string and the island differ."
@@ -250,4 +281,5 @@ const st = StyleSheet.create({
     borderColor: C.border,
   },
   t: { fontSize: 12, color: C.text },
+  narrowBox: { width: 180, fontSize: 15, backgroundColor: C.boxA, borderRadius: 4 },
 });
