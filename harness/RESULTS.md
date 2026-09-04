@@ -1319,6 +1319,32 @@ conclusion: *"iOS follows the app's UI direction, so a properly RTL-localized ap
 the property is only needed for state-driven apps."* There is no such escape. Omitting
 `textAlign` is unsafe in **every** iOS configuration we can produce.
 
+### The explicit half, on the same forced-RTL build
+
+Caught in the same frame, so it cost no rebuild. Every explicit-value row, `isRTL=true`
+against `isRTL=false`:
+
+| Row | isRTL=false | isRTL=true |
+| --- | --- | --- |
+| input placeholder `'left'` | 138..626 | 137..626 |
+| input value `'left'` | 138..516 | 137..517 |
+| input value `'right'` | 780..1181 | 779..1182 |
+| input value `'center'` | 444..876 | 443..876 |
+| `Text` nested 2 deep `'left'` | 794..1208 | 794..1208 |
+| `Text` `'center'` | 417..898 | 417..898 |
+| `Text` phone `'right'` | 110..430 | 110..430 |
+
+Sub-pixel only. **Nothing on iOS responds to the app-level direction flag** — not the
+defaults (above) and not the explicit values. That is now measured on both sides of the
+lever rather than argued from one.
+
+The complete iOS picture:
+
+| | Behaviour | Under `isRTL` true *and* false |
+| --- | --- | --- |
+| **Explicit** | `Text` mirrored by the island · `TextInput` physical · `'center'` untouched | identical |
+| **Default** | `Text` always LEFT · placeholder always LEFT · value first-strong | identical |
+
 **Settled in passing — `forcesRTL` DOES work on iOS at build time.** Via the
 `expo-localization` plugin, `isRTL` flipped to `true` and the layout mirrored. What has no
 working path is the **runtime** flip (`I18nManager.forceRTL` + reload, T2/T12). Those are two
