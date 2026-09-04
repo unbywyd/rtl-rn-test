@@ -1043,6 +1043,62 @@ applied to `direction` — and here it is cheap, because remounting one wrapper 
 flipped on-device *after* the change. Until a screen that previously stayed LTR is observed
 flipping, the fix is reasoned-from-evidence, **not measured**.
 
+### ⭐ T30 — `direction` MIRRORS `textAlign`; it does not lose to it
+
+- **Platform:** Galaxy S21 Ultra, Android 15, RN 0.86.2 / Fabric, app language `he`
+- **Screen:** `src/screens/DirectionScreen.tsx`, section T30
+- **Strings:** Latin on purpose — Hebrew right-aligns under *either* behaviour (R13),
+  which is exactly how a wrong `textAlign` stays invisible.
+
+Measured edge per row, card spanning x=64..1010:
+
+| Island | `textAlign` | ink x | gap L / R | Sits against |
+| --- | --- | --- | --- | --- |
+| `rtl` | *(none)* | 619..925 | 555 / 85 | **end (right)** |
+| `rtl` | `'left'` | 608..974 | 544 / 36 | **end (right)** |
+| `rtl` | `'right'` | 119..507 | 55 / 503 | **start (left)** |
+| `ltr` | *(none)* | 104..424 | 40 / 586 | start (left) |
+| `ltr` | `'left'` | 104..484 | 40 / 526 | start (left) |
+| `ltr` | `'right'` | 571..973 | 507 / 37 | end (right) |
+
+**Inside a `direction: 'rtl'` island, `textAlign: 'left'` renders on the RIGHT.** Yoga
+resolves `textAlign` the same way it resolves `flex-start` — it mirrors it. The value names a
+physical edge in the *unmirrored* coordinate space, so inside RTL 'left' means the start of
+the line.
+
+**This corrects R12.** That rule closes with:
+
+> an explicit `textAlign` **overrides layout direction** — a `textAlign: 'left'` row stayed
+> left-aligned inside the RTL screen
+
+True for the lever R12 actually used — `forceRTL` / app-language RTL, where nothing mirrors
+the property — and false for a `direction` island, which is the lever R22/T28/T29 landed on
+and the one `DirectionProvider` ships. Both mechanisms produce "an RTL screen"; only one
+mirrors `textAlign`.
+
+**How the gap survived.** `DirectionScreen`'s header asserted that "anything keyed off isRTL
+(icons, TextInput.textAlign) will NOT follow the island", and the section below it checked
+that `I18nManager.isRTL` keeps its app-level value — which it does. The conclusion about
+`textAlign` was *inferred from the flag*, never measured: no test read where text landed
+inside an island. `textAlign` is not keyed off `isRTL` at all; it is resolved by Yoga.
+
+**Consequence for the guide — the `textAlign` advice inverts under a `direction` provider:**
+
+> Under `DirectionProvider`, text that must hug the READING edge takes `textAlign: 'left'` in
+> both directions — Yoga has already mirrored the subtree, so 'left' *is* the start. Deriving
+> it from `isRTL` (`isRTL ? 'right' : 'left'`) mirrors a second time and lands the text on the
+> wrong edge: the §1 double flip, in the one property §1 does not cover.
+>
+> Always-LTR data — phone, email, IBAN, id — is the opposite case and still needs a physical
+> value, `'right'` inside RTL, so it does **not** mirror. Pair it with a BiDi isolate (R14):
+> this pins the block, the isolate fixes character order.
+
+**Found in production, not in the lab:** a Hebrew login screen whose field label sat on the
+wrong edge. It was invisible in Hebrew-only review for exactly the R13 reason, and surfaced
+only when the label was read against the field it belonged to.
+
+---
+
 ### T8 / T9 / T20 — Logical properties
 
 - **Platform:** iOS 26.5.2 / iPhone 16 Pro Max · layout LTR
